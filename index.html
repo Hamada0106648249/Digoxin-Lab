@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Digoxin Lab — Clinic Escape (By Dr. Ahmed Sayed)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root{ --flip: 0.5s; }
+    body{ font-family: 'Poppins', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, 'Helvetica Neue', Arial; }
+    .card{ border-radius: 14px; box-shadow: 0 4px 14px rgba(0,0,0,.08); }
+    .draggable{ cursor: grab; }
+    .droppable{ min-height: 64px; border:2px dashed rgba(15,23,42,.15); border-radius:12px; padding:10px }
+    .droppable.filled{ border-style: solid; border-color: rgba(16,185,129,.6); background: rgba(16,185,129,.06) }
+    .kbd{ padding:2px 6px; border-radius:6px; border:1px solid rgba(100,116,139,.35); font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace; font-size:12px }
+    .badge{ padding:4px 8px; border-radius:999px; font-weight:700; }
+    .spark{ animation: pop .35s ease both }
+    @keyframes pop{ from{ transform:scale(.9); opacity:.6 } to{ transform:scale(1); opacity:1 } }
+  </style>
+</head>
+<body class="bg-slate-50 min-h-screen">
+  <!-- HEADER -->
+  <header class="sticky top-0 bg-white/90 backdrop-blur z-10 border-b border-slate-200">
+    <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
+      <div>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800">Digoxin Lab — Clinic Escape</h1>
+        <p class="text-slate-500 text-sm">By Dr. Ahmed Sayed • Case‑based mini‑games: mechanism → calibration → triage → interactions → rescue</p>
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="badge bg-emerald-100 text-emerald-800" id="score">Score: 0</span>
+        <span class="badge bg-sky-100 text-sky-800" id="stage">Stage 1 / 5</span>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
+    <!-- INTRO -->
+    <section id="intro" class="card bg-white p-5">
+      <h2 class="text-xl font-bold text-slate-800 mb-2">Welcome to Clinic Escape</h2>
+      <p class="text-slate-700">You are covering the cardiology service. Five quick mini‑games will test your mastery of digoxin—from ion pumps to bedside action. Earn points, unlock badges, and discharge your patients safely.</p>
+      <ul class="list-disc pl-6 text-slate-600 mt-3">
+        <li><strong>Mechanism Builder:</strong> drag & drop the pathway blocks correctly.</li>
+        <li><strong>Calibration Curve:</strong> convert UV absorbance to level (ng/mL).</li>
+        <li><strong>Therapeutic Range Triage:</strong> decide the next step with electrolytes.</li>
+        <li><strong>Interactions Match:</strong> pair the med/findings with their effects.</li>
+        <li><strong>Rescue Room:</strong> stabilize three realistic cases.</li>
+      </ul>
+      <button id="btnStart" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg">Start</button>
+    </section>
+
+    <!-- STAGE 1: MECHANISM BUILDER -->
+    <section id="s1" class="card bg-white p-5 hidden">
+      <div class="flex items-center justify-between mb-2">
+        <h3 class="text-lg font-bold text-slate-800">Stage 1 — Mechanism Builder</h3>
+        <span class="text-slate-500 text-sm">Drag terms into the pathway</span>
+      </div>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div class="space-y-3">
+          <div class="droppable" data-key="NAK">Drop: Inhibits Na⁺/K⁺‑ATPase</div>
+          <div class="droppable" data-key="NA">Drop: ↑ intracellular Na⁺</div>
+          <div class="droppable" data-key="NCX">Drop: ↓ Na⁺ gradient → ↑ Ca²⁺ via Na⁺/Ca²⁺ exchanger</div>
+          <div class="droppable" data-key="INO">Drop: ↑ Ca²⁺ → ↑ inotropy (contractility)</div>
+        </div>
+        <div class="grid grid-cols-2 gap-2" id="pool1">
+          <!-- draggables injected -->
+        </div>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg" onclick="resetS1()">Reset</button>
+        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg" onclick="checkS1()">Check</button>
+      </div>
+      <p id="s1fb" class="mt-3 text-sm"></p>
+    </section>
+
+    <!-- STAGE 2: CALIBRATION CURVE -->
+    <section id="s2" class="card bg-white p-5 hidden">
+      <h3 class="text-lg font-bold text-slate-800 mb-2">Stage 2 — Spectrophotometry: Read the Level</h3>
+      <p class="text-slate-600 mb-3">Use the linear calibration A = m·C + b at 220 nm. Adjust slope/intercept to fit standards, then read the unknown.</p>
+      <div class="grid md:grid-cols-3 gap-4 items-start">
+        <div class="md:col-span-2 bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <svg id="chart" viewBox="0 0 320 220" class="w-full h-64 bg-white rounded-md border border-slate-200"></svg>
+        </div>
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm text-slate-600">Slope (m)</label>
+            <input id="slope" type="range" min="0.5" max="2.5" step="0.05" value="1.2" class="w-full">
+          </div>
+          <div>
+            <label class="block text-sm text-slate-600">Intercept (b)</label>
+            <input id="intercept" type="range" min="-0.2" max="0.4" step="0.01" value="0.05" class="w-full">
+          </div>
+          <div class="text-sm text-slate-700">Unknown absorbance: <span id="unkA" class="font-bold">—</span></div>
+          <div class="text-sm text-slate-700">Your calculated concentration: <span id="calcC" class="font-bold">—</span> ng/mL</div>
+          <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg" onclick="checkS2()">Lock Answer</button>
+          <p id="s2fb" class="text-sm"></p>
+        </div>
+      </div>
+    </section>
+
+    <!-- STAGE 3: RANGE TRIAGE -->
+    <section id="s3" class="card bg-white p-5 hidden">
+      <h3 class="text-lg font-bold text-slate-800 mb-2">Stage 3 — Therapeutic Range Triage</h3>
+      <p class="text-slate-600 mb-3">Classify and act. Consider electrolytes: low K⁺/Mg²⁺ increases toxicity risk; high Ca²⁺ can potentiate toxicity.</p>
+      <div class="grid md:grid-cols-2 gap-4" id="cases3">
+        <!-- cards injected -->
+      </div>
+      <p id="s3fb" class="mt-3 text-sm"></p>
+    </section>
+
+    <!-- STAGE 4: INTERACTIONS MATCH -->
+    <section id="s4" class="card bg-white p-5 hidden">
+      <h3 class="text-lg font-bold text-slate-800 mb-2">Stage 4 — Interactions Match</h3>
+      <p class="text-slate-600 mb-3">Match each medication/finding to its effect on digoxin risk.</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <h4 class="font-semibold text-slate-700 mb-2">Left: Triggers</h4>
+          <div id="left4" class="space-y-2"></div>
+        </div>
+        <div>
+          <h4 class="font-semibold text-slate-700 mb-2">Right: Effects</h4>
+          <div id="right4" class="space-y-2"></div>
+        </div>
+      </div>
+      <div class="mt-4 flex gap-2">
+        <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg" onclick="resetS4()">Reset</button>
+        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg" onclick="checkS4()">Check</button>
+      </div>
+      <p id="s4fb" class="mt-3 text-sm"></p>
+    </section>
+
+    <!-- STAGE 5: RESCUE ROOM -->
+    <section id="s5" class="card bg-white p-5 hidden">
+      <h3 class="text-lg font-bold text-slate-800 mb-2">Stage 5 — Rescue Room</h3>
+      <p class="text-slate-600 mb-3">Stabilize three patients. Choose the next best step.</p>
+      <div id="rescue" class="grid md:grid-cols-3 gap-3"><!-- cases injected --></div>
+      <p id="s5fb" class="mt-3 text-sm"></p>
+    </section>
+
+    <!-- WIN MODAL -->
+    <div id="win" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4">
+      <div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md w-full transform transition-all scale-95 opacity-0">
+        <div id="winBadge" class="text-8xl mb-4">🏆</div>
+        <h2 class="text-3xl font-bold text-slate-800 mb-2">Clinic Escaped!</h2>
+        <p id="winMsg" class="text-slate-600 mb-6 text-lg"></p>
+        <button id="btnReplay" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-lg transition-transform hover:scale-105 shadow-lg">Play Again</button>
+      </div>
+    </div>
+  </main>
+
+<script>
+  // Global score & stage
+  let score = 0, stage = 1;
+  const scoreEl = document.getElementById('score');
+  const stageEl = document.getElementById('stage');
+  function setScore(v){ score = Math.max(0, v); scoreEl.textContent = 'Score: '+score }
+  function setStage(v){ stage = v; stageEl.textContent = `Stage ${v} / 5` }
+
+  // Helpers
+  function show(id){ document.getElementById(id).classList.remove('hidden') }
+  function hide(id){ document.getElementById(id).classList.add('hidden') }
+  function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild }
+  function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
+
+  // INTRO
+  document.getElementById('btnStart').addEventListener('click', ()=>{
+    hide('intro'); show('s1'); setStage(1); initS1();
+  });
+
+  // ===== Stage 1: Mechanism Builder =====
+  const pieces = [
+    {key:'NCX', label:'↓ Na⁺ gradient → ↑ Ca²⁺ via Na⁺/Ca²⁺ exchanger'},
+    {key:'NA', label:'↑ intracellular Na⁺'},
+    {key:'INO', label:'↑ Ca²⁺ → ↑ inotropy'},
+    {key:'NAK', label:'Inhibits Na⁺/K⁺‑ATPase'},
+    {key:'DECOY1', label:'Blocks β₁ receptors'},
+    {key:'DECOY2', label:'Activates muscarinic M₂'}
+  ];
+  function initS1(){
+    const pool = document.getElementById('pool1');
+    pool.innerHTML = '';
+    shuffle(pieces).forEach(p=>{
+      const d = el(`<div draggable="true" class="draggable bg-sky-50 border border-sky-200 text-sky-900 p-2 rounded-md text-sm" data-key="${p.key}">${p.label}</div>`);
+      d.addEventListener('dragstart', e=>{ e.dataTransfer.setData('text/plain', p.key); });
+      pool.appendChild(d);
+    });
+    document.querySelectorAll('#s1 .droppable').forEach(zone=>{
+      zone.addEventListener('dragover', e=> e.preventDefault());
+      zone.addEventListener('drop', e=>{
+        e.preventDefault();
+        const key = e.dataTransfer.getData('text/plain');
+        zone.textContent = pieces.find(x=>x.key===key)?.label || 'Wrong item';
+        zone.dataset.filled = key; zone.classList.add('filled');
+      })
+    })
+  }
+  function resetS1(){ document.querySelectorAll('#s1 .droppable').forEach(z=>{ z.classList.remove('filled'); z.textContent = 'Drop: '+z.getAttribute('data-key').replace('NAK','Inhibits Na⁺/K⁺‑ATPase').replace('NA','↑ intracellular Na⁺').replace('NCX','↓ Na⁺ gradient → ↑ Ca²⁺ via Na⁺/Ca²⁺ exchanger').replace('INO','↑ Ca²⁺ → ↑ inotropy (contractility)'); z.dataset.filled='' }); initS1(); }
+  function checkS1(){
+    const need = ['NAK','NA','NCX','INO'];
+    let ok = 0; document.querySelectorAll('#s1 .droppable').forEach(z=>{ if(z.dataset.filled===z.getAttribute('data-key')) ok++; });
+    const fb = document.getElementById('s1fb');
+    if(ok===4){ setScore(score+20); fb.textContent='Excellent — full pathway assembled.'; fb.className='mt-3 text-sm text-emerald-700'; nextStage(); }
+    else { setScore(score-2); fb.textContent='Some blocks are misplaced. Review and try again.'; fb.className='mt-3 text-sm text-rose-700'; }
+  }
+
+  function nextStage(){ setTimeout(()=>{
+    if(stage===1){ hide('s1'); show('s2'); setStage(2); initS2(); }
+    else if(stage===2){ hide('s2'); show('s3'); setStage(3); initS3(); }
+    else if(stage===3){ hide('s3'); show('s4'); setStage(4); initS4(); }
+    else if(stage===4){ hide('s4'); show('s5'); setStage(5); initS5(); }
+    else if(stage===5){ winGame(); }
+  }, 500); }
+
+  // ===== Stage 2: Calibration Curve =====
+  let stdPts, unkA, trueSlope, trueIntercept;
+  function initS2(){
+    // generate linear standards (C in ng/mL, A dimensionless)
+    trueSlope = +(0.8 + Math.random()*1.2).toFixed(2); // 0.8–2.0
+    trueIntercept = +(-0.05 + Math.random()*0.15).toFixed(2); // -0.05–0.10
+    stdPts = [0, 0.5, 1.0, 1.5, 2.0].map(c=>({ c, a: +(trueSlope*c + trueIntercept + (Math.random()*0.04-0.02)).toFixed(2) }));
+    const unknownC = +(0.4 + Math.random()*1.6).toFixed(2); // 0.4–2.0
+    unkA = +(trueSlope*unknownC + trueIntercept + (Math.random()*0.02-0.01)).toFixed(2);
+    document.getElementById('unkA').textContent = unkA.toFixed(2);
+
+    drawChart();
+    ['slope','intercept'].forEach(id=> document.getElementById(id).addEventListener('input', drawChart));
+  }
+  function drawChart(){
+    const svg = document.getElementById('chart'); svg.innerHTML = '';
+    const w=300, h=180, ox=30, oy=180;
+    function mapX(c){ return 20 + c/2.2 * w }
+    function mapY(a){ return oy - (a-(-0.2))/2.6 * h }
+    // axes
+    svg.insertAdjacentHTML('beforeend', `<line x1="20" y1="10" x2="20" y2="200" stroke="#94a3b8"/><line x1="20" y1="200" x2="320" y2="200" stroke="#94a3b8"/>`);
+    // points
+    stdPts.forEach(p=> svg.insertAdjacentHTML('beforeend', `<circle cx="${mapX(p.c)}" cy="${mapY(p.a)}" r="4" fill="#0ea5e9"/>`) );
+    // fit line from controls
+    const m = +document.getElementById('slope').value; const b = +document.getElementById('intercept').value;
+    const y1 = mapY(m*0 + b), y2 = mapY(m*2.2 + b);
+    svg.insertAdjacentHTML('beforeend', `<line x1="20" y1="${y1}" x2="320" y2="${y2}" stroke="#10b981"/>`);
+    // unknown A horizontal
+    svg.insertAdjacentHTML('beforeend', `<line x1="20" y1="${mapY(unkA)}" x2="320" y2="${mapY(unkA)}" stroke="#f59e0b" stroke-dasharray="4 3"/>`);
+
+    // calculate concentration from current m,b
+    const c = (unkA - b) / m; const calc = Math.max(0, Math.min(2.2, c));
+    document.getElementById('calcC').textContent = calc.toFixed(2);
+  }
+  function checkS2(){
+    const m = +document.getElementById('slope').value; const b = +document.getElementById('intercept').value;
+    const c = (unkA - b) / m; const unknownTrueC = (unkA - trueIntercept)/trueSlope;
+    const fb = document.getElementById('s2fb');
+    const err = Math.abs(c - unknownTrueC);
+    if(err <= 0.1){ setScore(score+20); fb.textContent='Good fit — concentration within ±0.1 ng/mL.'; fb.className='text-emerald-700'; nextStage(); }
+    else { setScore(score-2); fb.textContent='Your line misses the standards — adjust slope/intercept and try again.'; fb.className='text-rose-700'; }
+  }
+
+  // ===== Stage 3: Therapeutic Range Triage =====
+  const CASES3 = [
+    {lvl:0.4, k:3.1, mg:1.6, ca:9.0, txt:'Level 0.4 ng/mL, K⁺ 3.1, Mg²⁺ 1.6, Ca²⁺ 9.0', ans:'subtherapeutic_risk'},
+    {lvl:1.3, k:3.0, mg:1.4, ca:9.2, txt:'Level 1.3 ng/mL, K⁺ 3.0, Mg²⁺ 1.4, Ca²⁺ 9.2', ans:'therapeutic_lowK'},
+    {lvl:2.3, k:4.2, mg:1.9, ca:10.5, txt:'Level 2.3 ng/mL, K⁺ 4.2, Mg²⁺ 1.9, Ca²⁺ 10.5', ans:'high_risk'},
+  ];
+  function initS3(){
+    const host = document.getElementById('cases3'); host.innerHTML='';
+    CASES3.forEach((c,i)=>{
+      host.appendChild(el(`<div class="border rounded-lg p-3">
+        <div class="font-semibold">Case ${i+1}</div>
+        <div class="text-slate-700 mb-2">${c.txt}</div>
+        <div class="grid grid-cols-2 gap-2">
+          <button class="opt bg-slate-100 hover:bg-slate-200 p-2 rounded" data-ans="subtherapeutic_risk">Sub‑therapeutic — consider dose/levels; correct electrolytes</button>
+          <button class="opt bg-slate-100 hover:bg-slate-200 p-2 rounded" data-ans="therapeutic_lowK">Therapeutic — but low K⁺/Mg²⁺ → correct first</button>
+          <button class="opt bg-slate-100 hover:bg-slate-200 p-2 rounded" data-ans="high_risk">Potential toxicity — evaluate & treat</button>
+          <button class="opt bg-slate-100 hover:bg-slate-200 p-2 rounded" data-ans="ignore">No action needed</button>
+        </div>
+      </div>`));
+    });
+    document.querySelectorAll('#cases3 .opt').forEach(b=> b.addEventListener('click', (e)=>{
+      const card = e.target.closest('.border');
+      const idx = Array.from(card.parentNode.children).indexOf(card);
+      const correct = e.target.dataset.ans === CASES3[idx].ans;
+      const fb = document.getElementById('s3fb');
+      if(correct){ setScore(score+10); fb.textContent='Good triage — proceed.'; fb.className='mt-3 text-sm text-emerald-700'; card.classList.add('ring-2','ring-emerald-400'); }
+      else { setScore(score-2); fb.textContent='Reassess the range and electrolytes.'; fb.className='mt-3 text-sm text-rose-700'; card.classList.add('ring-2','ring-rose-400'); }
+      if(document.querySelectorAll('#cases3 .ring-emerald-400').length===CASES3.length) nextStage();
+    }));
+  }
+
+  // ===== Stage 4: Interactions Match =====
+  const LEFT4 = [
+    {id:'furo', text:'Furosemide (loop diuretic)'},
+    {id:'hypok', text:'Hypokalemia / Hypomagnesemia'},
+    {id:'hyperca', text:'Hypercalcemia'},
+    {id:'renal', text:'Renal failure / CKD'},
+  ];
+  const RIGHT4 = [
+    {id:'sens', text:'Sensitizes myocardium to digoxin → toxicity at “normal” levels'},
+    {id:'risk', text:'Increases risk of digoxin accumulation and toxicity'},
+    {id:'potentiate', text:'May potentiate digoxin toxicity (caution with Ca²⁺)'},
+    {id:'kdep', text:'Loop‑induced K⁺/Mg²⁺ loss → higher toxicity risk'},
+  ];
+  let answers4 = { furo:'kdep', hypok:'sens', hyperca:'potentiate', renal:'risk' };
+  function initS4(){
+    const L = document.getElementById('left4'); const R = document.getElementById('right4');
+    L.innerHTML=''; R.innerHTML='';
+    shuffle(LEFT4).forEach(x=> L.appendChild(renderToken(x,'left')) );
+    shuffle(RIGHT4).forEach(x=> R.appendChild(renderToken(x,'right')) );
+  }
+  function renderToken(item, side){
+    const d = el(`<div class="p-3 rounded border bg-white flex items-center justify-between gap-2">
+      <span class="text-slate-800">${item.text}</span>
+      ${side==='left'? `<select class="border rounded px-2 py-1 text-sm" data-id="${item.id}">
+        <option value="">Choose…</option>
+        ${RIGHT4.map(r=>`<option value="${r.id}">${r.text}</option>`).join('')}
+      </select>` : ''}
+    </div>`);
+    return d;
+  }
+  function resetS4(){ initS4(); document.getElementById('s4fb').textContent=''; }
+  function checkS4(){
+    let ok=0; document.querySelectorAll('#left4 select').forEach(sel=>{ if(sel.value===answers4[sel.dataset.id]) ok++; });
+    const fb = document.getElementById('s4fb');
+    if(ok===LEFT4.length){ setScore(score+20); fb.textContent='All matches correct.'; fb.className='mt-3 text-sm text-emerald-700'; nextStage(); }
+    else { setScore(score-2); fb.textContent=`${ok}/${LEFT4.length} correct — review diuretic/electrolyte effects and renal dosing.`; fb.className='mt-3 text-sm text-rose-700'; }
+  }
+
+  // ===== Stage 5: Rescue Room =====
+  const RESCUE = [
+    {name:'Male 65y — renal failure', facts:['Digoxin 0.25 mg daily (Fri off)','Brady with confusion','K⁺ 5.8, SCr ↑','Level pending'], options:[
+      {t:'Give digoxin dose now', ok:false},
+      {t:'Order digoxin level; hold dose; check EKG/electrolytes', ok:true},
+      {t:'Give calcium bolus for bradycardia', ok:false},
+      {t:'Start hemodialysis to clear digoxin', ok:false}
+    ]},
+    {name:'Female 45y — hypercalcemia + furosemide', facts:['Yellow‑green vision halos','Nausea','K⁺ 3.0, Ca²⁺ 11.2','On furosemide'], options:[
+      {t:'Administer digoxin immune Fab (if severe) and correct K⁺/Mg²⁺', ok:true},
+      {t:'Increase digoxin dose', ok:false},
+      {t:'No monitoring needed', ok:false},
+      {t:'Start strong anticholinergic for nausea', ok:false}
+    ]},
+    {name:'Male 43y — diabetes', facts:['Palpitations','Level 0.6 ng/mL','Electrolytes normal'], options:[
+      {t:'Consider dose titration if clinically indicated', ok:true},
+      {t:'Diagnose toxicity and give Fab', ok:false},
+      {t:'Stop all monitoring', ok:false},
+      {t:'Start β‑blocker immediately without evaluation', ok:false}
+    ]}
+  ];
+  function initS5(){
+    const host = document.getElementById('rescue'); host.innerHTML='';
+    RESCUE.forEach((c,i)=>{
+      const card = el(`<div class="border rounded-lg p-3 bg-white">
+        <div class="font-semibold mb-1">${c.name}</div>
+        <ul class="text-slate-600 text-sm mb-2 list-disc pl-5">${c.facts.map(f=>`<li>${f}</li>`).join('')}</ul>
+        <div class="grid gap-2">${c.options.map((o,j)=>`<button class="bg-slate-100 hover:bg-slate-200 p-2 rounded text-left" data-i="${i}" data-j="${j}">${o.t}</button>`).join('')}</div>
+      </div>`);
+      host.appendChild(card);
+    });
+    host.querySelectorAll('button').forEach(b=> b.addEventListener('click', onRescue));
+  }
+  function onRescue(e){
+    const i = +e.target.dataset.i; const j = +e.target.dataset.j; const o = RESCUE[i].options[j];
+    const fb = document.getElementById('s5fb');
+    if(o.ok){ setScore(score+15); e.target.classList.add('bg-emerald-100'); fb.textContent='Correct — proceed to stabilize and monitor levels.'; fb.className='mt-3 text-sm text-emerald-700'; }
+    else { setScore(score-2); e.target.classList.add('bg-rose-100'); fb.textContent='Reconsider: prioritize holding dose, monitoring, correcting electrolytes, and Fab when indicated.'; fb.className='mt-3 text-sm text-rose-700'; }
+    if(document.querySelectorAll('#rescue .bg-emerald-100').length===3) winGame();
+  }
+
+  function winGame(){
+    const modal = document.getElementById('win'); modal.classList.remove('hidden'); modal.classList.add('flex');
+    setTimeout(()=>{ modal.querySelector('div').classList.remove('scale-95','opacity-0'); },10);
+    const msg = `Total score: ${score}. Excellent work synthesizing mechanism, lab analytics, and bedside decisions.`;
+    document.getElementById('winMsg').textContent = msg;
+    document.getElementById('btnReplay').onclick = ()=>{ location.reload() };
+  }
+
+  // Initialize S4, S5 lazily when reached
+  function initS3(){}
+  function initS4(){ initS4.called||(initS4.called=true); initS4._=true; const _=0; initS4._once|| (initS4._once=true, initS4()); }
+  // patch: just call once
+  initS4 = ()=>{ const L=document.getElementById('left4'); const R=document.getElementById('right4'); L.innerHTML=''; R.innerHTML=''; LEFT4.forEach(x=> L.appendChild(renderToken(x,'left')) ); RIGHT4.forEach(x=> R.appendChild(renderToken(x,'right')) ); };
+  function initS5(){}
+
+</script>
+</body>
+</html>
