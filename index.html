@@ -48,7 +48,7 @@
         <li><strong>Interactions Match:</strong> pair the med/findings with their effects.</li>
         <li><strong>Rescue Room:</strong> stabilize three realistic cases.</li>
       </ul>
-      <button id="btnStart" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg">Start</button>
+      <button id="btnStart" onclick="startGame()" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg">Start</button>
     </section>
 
     <!-- STAGE 1: MECHANISM BUILDER -->
@@ -164,10 +164,10 @@
   function hide(id){ document.getElementById(id).classList.add('hidden') }
   function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild }
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
+  function startGame(){ try{ hide('intro'); show('s1'); setStage(1); initS1(); }catch(e){ console.error('Start failed', e); } }
 
   // INTRO
-  window.addEventListener('DOMContentLoaded', function(){
-    const startBtn = document.getElementById('btnStart');
+  
     if(startBtn){
       startBtn.addEventListener('click', ()=>{
         hide('intro');
