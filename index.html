@@ -14,10 +14,8 @@
     .badge{border-radius:999px;padding:.25rem .6rem;font-weight:700}
     .meter{height:10px;border-radius:999px;background:#e2e8f0;overflow:hidden}
     .meter>span{display:block;height:100%;background:#10b981}
-    .danger{color:#dc2626}
-    .warn{color:#d97706}
-    .ok{color:#059669}
-    .muted{color:#64748b}
+    .danger{color:#dc2626}.warn{color:#d97706}.ok{color:#059669}.muted{color:#64748b}
+    .hidden{display:none}
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
@@ -39,30 +37,8 @@
     <section id="intro" class="card bg-white p-6">
       <h2 class="text-xl font-bold text-slate-800 mb-2">Welcome to Digitalis Survivor</h2>
       <p class="text-slate-700">You are the on‑call clinical pharmacist. Keep all three patients stable for <strong>5 days</strong>. Each day you must set doses, correct electrolytes, and respond to events.</p>
-      <ul class="list-disc pl-6 text-slate-600 mt-2">
-        <li><strong>Therapeutic levels</strong> are usually <em>~0.5–2.0 ng/mL</em>; levels &gt; 2.0 raise risk, and &gt; 3.0 suggest toxicity. Always interpret with clinical context and electrolytes.</li>
-        <li><strong>Hypokalemia / hypomagnesemia</strong> increase digoxin sensitivity; <strong>renal failure</strong> slows clearance; <strong>hypercalcemia</strong> may potentiate toxicity.</li>
-        <li>In severe toxicity, consider <strong>digoxin‑immune Fab</strong>.</li>
-      </ul>
-      <button id="btnStart" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg" onclick="startGame()">Start</button>
-      <script>(function(){
-        function fallbackStart(){
-          try{
-            var intro=document.getElementById('intro');
-            var panel=document.getElementById('panel');
-            var patients=document.getElementById('patients');
-            if(intro) intro.classList.add('hidden');
-            if(panel) panel.classList.remove('hidden');
-            if(patients) patients.classList.remove('hidden');
-            if(typeof setScore==='function') setScore(0);
-            if(typeof setDay==='function') setDay(1);
-            if(typeof render==='function') render();
-          }catch(e){ console.error('Start fallback error', e); alert('Start error: '+(e&&e.message?e.message:e)); }
-        }
-        if(typeof window.startGame!=='function') window.startGame=fallbackStart;
-        var btn=document.getElementById('btnStart');
-        if(btn && !btn._bound){ btn.addEventListener('click', function(){ if(typeof window.startGame==='function') window.startGame(); }); btn._bound=true; }
-      })();</script>
+      <button id="btnStart" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg">Start</button>
+      <div id="diag" class="hidden mt-3 text-xs text-rose-700"></div>
     </section>
 
     <!-- Dashboard / Global Events -->
@@ -71,285 +47,89 @@
         <div class="flex items-center gap-2">
           <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg" onclick="prevDay()">Prev</button>
           <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg" onclick="advanceDay()">Advance Day</button>
+          <button class="bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold py-2 px-4 rounded-lg" onclick="forceRender()">Force Render</button>
         </div>
         <div class="text-slate-600 text-sm">Tip: Correct K⁺/Mg²⁺ before increasing the dose.</div>
       </div>
     </section>
 
-    <div id="diag" class="hidden mt-2 text-xs text-rose-700"></div>
-
     <!-- Patients Grid -->
     <section id="patients" class="grid md:grid-cols-3 gap-4 hidden"></section>
-
-    <!-- Win Modal -->
-    <div id="win" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md w-full transform transition-all scale-95 opacity-0">
-        <div class="text-8xl mb-4">🏆</div>
-        <h2 class="text-3xl font-bold text-slate-800 mb-2">All Patients Discharged!</h2>
-        <p id="winMsg" class="text-slate-600 mb-6 text-lg"></p>
-        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-lg" onclick="location.reload()">Play Again</button>
-      </div>
-    </div>
   </main>
 
   <script>
-  // ======= Utility & State =======
-  const $ = (sel, root=document) => root.querySelector(sel);
-  const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-  function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-  function rand(a,b){return a + Math.random()*(b-a)}
+  // ===== Minimal, defensive boot =====
+  (function(){
+    const $ = s => document.querySelector(s);
+    function show(id){ const el=$(id); if(el) el.classList.remove('hidden'); }
+    function hide(id){ const el=$(id); if(el) el.classList.add('hidden'); }
+    function diag(msg){ const d=$('#diag'); if(d){ d.textContent=msg; d.classList.remove('hidden'); } }
 
-  const DAYS_TOTAL = 5;
-  let day = 1;
-  let score = 0;
+    // Core state
+    const DAYS_TOTAL=5; let day=1; let score=0;
+    function setScore(v){ score=Math.max(0,Math.round(v)); $('#score').textContent='Score: '+score; }
+    function setDay(v){ day=v; $('#day').textContent=`Day ${day} / ${DAYS_TOTAL}`; }
 
-  const scoreEl = () => document.getElementById('score');
-  const dayEl = () => document.getElementById('day');
+    // Patient data
+    const PATIENTS=[
+      { id:'p1', name:'AH (65-year-old male)', dx:'Heart failure with reduced ejection fraction and atrial fibrillation', renal:'Chronic kidney disease — stage 2', elim:0.30,
+        dose:0, level:0.8, k:4.0, mg:1.9, ca:9.6, amio:false, loop:true, status:'stable' },
+      { id:'p2', name:'NS (48-year-old female)', dx:'Paroxysmal atrial fibrillation', renal:'Normal renal function', elim:0.40,
+        dose:0, level:0.4, k:3.2, mg:1.6, ca:10.8, amio:false, loop:false, status:'stable' },
+      { id:'p3', name:'RM (73-year-old male)', dx:'Heart failure with preserved ejection fraction', renal:'Chronic kidney disease — stage 4', elim:0.15,
+        dose:0, level:1.1, k:3.6, mg:1.7, ca:9.1, amio:true, loop:true, status:'fragile' },
+    ];
 
-  function setScore(v){ score = Math.max(0, Math.round(v)); scoreEl().textContent = 'Score: '+score; localStorage.setItem('ds_score', score) }
-  function setDay(v){ day = v; dayEl().textContent = `Day ${day} / ${DAYS_TOTAL}`; localStorage.setItem('ds_day', day) }
+    function classifyLevel(c){ if(c<0.5) return {lab:'Sub-therapeutic',cls:'muted'}; if(c<=2.0) return {lab:'Safe',cls:'ok'}; if(c<=3.0) return {lab:'Borderline',cls:'warn'}; return {lab:'Toxic',cls:'danger'}; }
+    function eventBadge(txt, type){ const m={info:'bg-sky-100 text-sky-800',good:'bg-emerald-100 text-emerald-800',bad:'bg-rose-100 text-rose-800',warn:'bg-amber-100 text-amber-800'}; return `<span class="badge ${m[type]||m.info}">${txt}</span>`}
 
-  // Classification per references (general guidance, interpret clinically)
-  // 0.5–2.0 ng/mL: typical safe range (StatPearls/Cleveland Clinic)
-  // >2.0 up to 3.0: borderline/high risk
-  // >3.0: toxic/very high risk
-  function classifyLevel(c){
-    if(c < 0.5) return {lab:'Sub-therapeutic', cls:'muted'};
-    if(c <= 2.0) return {lab:'Safe', cls:'ok'};
-    if(c <= 3.0) return {lab:'Borderline', cls:'warn'};
-    return {lab:'Toxic', cls:'danger'};
-  }
+    function baseDoseToConc(dose){ if(dose<=0) return 0; if(dose<=0.125) return 0.25; if(dose<=0.25) return 0.5; return 0.8; }
+    function applyDayUpdate(p){ const remaining=p.level*(1-p.elim); const input=baseDoseToConc(p.dose); p.level=+(remaining+input).toFixed(2); }
 
-  function eventBadge(txt, type='info'){
-    const colors = {info:'bg-sky-100 text-sky-800', good:'bg-emerald-100 text-emerald-800', bad:'bg-rose-100 text-rose-800', warn:'bg-amber-100 text-amber-800'};
-    return `<span class="badge ${colors[type]||colors.info}">${txt}</span>`;
-  }
-
-  // ======= Patient Models =======
-  // Simplified PK/PD for teaching: not clinical dosing advice.
-  const PATIENTS = [
-    { id:'p1', name:'AH (65-year-old male)', dx:'Heart failure with reduced ejection fraction and atrial fibrillation', renal:'Chronic kidney disease — stage 2', elim:0.30,
-      dose:0, level:0.8, k:4.0, mg:1.9, ca:9.6, amio:false, loop:true, status:'stable' },
-    { id:'p2', name:'NS (48-year-old female)', dx:'Paroxysmal atrial fibrillation', renal:'Normal renal function', elim:0.40,
-      dose:0, level:0.4, k:3.2, mg:1.6, ca:10.8, amio:false, loop:false, status:'stable' },
-    { id:'p3', name:'RM (73-year-old male)', dx:'Heart failure with preserved ejection fraction', renal:'Chronic kidney disease — stage 4', elim:0.15,
-      dose:0, level:1.1, k:3.6, mg:1.7, ca:9.1, amio:true, loop:true, status:'fragile' },
-  ];
-
-  function baseDoseToConc(dose){ // mg to delta ng/mL (toy model)
-    if(dose <= 0) return 0;
-    if(dose <= 0.125) return rand(0.18,0.32); // conservative increment for 0.125 mg
-    if(dose <= 0.25) return rand(0.35,0.65);  // increment for 0.25 mg
-    return rand(0.7,0.9);
-  }
-
-  function applyDayUpdate(p){
-    // elimination with renal factor
-    let elim = p.elim;
-    if(p.amio) elim -= 0.05; // amiodarone reduces clearance
-    elim = clamp(elim, 0.05, 0.6);
-
-    // new level = remaining + today input
-    const remaining = p.level * (1 - elim);
-    const input = baseDoseToConc(p.dose);
-    p.level = +(remaining + input).toFixed(2);
-
-    // electrolyte drift & events
-    if(p.loop && Math.random()<0.45){ p.k = +(p.k - rand(0.1,0.3)).toFixed(2); p.mg = +(p.mg - rand(0.05,0.15)).toFixed(2); p._lastEvent = eventBadge('Loop diuretic losses', 'warn'); }
-    if(p.amio && Math.random()<0.25){ p._lastEvent = eventBadge('Amiodarone interaction', 'warn'); }
-    if(Math.random()<0.15){ p.ca = +(p.ca + rand(0.1,0.3)).toFixed(2); p._lastEvent = eventBadge('Calcium up', 'warn'); }
-
-    // cap ranges
-    p.k = clamp(p.k, 2.6, 5.8); p.mg = clamp(p.mg, 1.1, 2.5); p.ca = clamp(p.ca, 8.2, 11.8);
-
-    // symptoms score (toy): rises with high level + low K/Mg + high Ca
-    let s = 0; if(p.level>2.0) s += (p.level-2.0)*2; if(p.level>3.0) s += 1.5;
-    if(p.k<3.5) s += (3.5 - p.k); if(p.mg<1.7) s += (1.7 - p.mg)*0.8; if(p.ca>10.5) s += (p.ca-10.5)*0.7;
-    p.status = s>3.5? 'critical' : s>1.5? 'watch' : 'stable';
-  }
-
-  function correctElectrolytes(p){
-    p.k = +(p.k + 0.6).toFixed(2); p.mg = +(p.mg + 0.25).toFixed(2);
-    p.k = Math.min(p.k, 4.8); p.mg = Math.min(p.mg, 2.2);
-    p._lastEvent = eventBadge('Electrolytes corrected', 'good');
-    setScore(score+2);
-    render();
-  }
-
-  function giveFab(p){
-    // Antidote effect: rapidly neutralizes circulating digoxin (toy model)
-    p.level = +(p.level*0.15).toFixed(2);
-    p.status = 'stable';
-    p._lastEvent = eventBadge('Digoxin‑immune Fab given', 'good');
-    setScore(score+12);
-    render();
-  }
-
-  function orderLevel(p){
-    // Simulate same-day post-dose sampling: partial absorption effect once per day
-    if(!p._sampled){
-      const delta = baseDoseToConc(p.dose) * 0.6; // ~60% of daily increment assumed before draw
-      p.level = +(p.level + delta).toFixed(2);
-      p._sampled = true;
-      p._lastEvent = eventBadge('Level drawn (post‑dose sample)', 'info');
-    }
-    p._showLevel = true;
-    setScore(score+1);
-    render();
-  }
-
-  // ======= UI Rendering =======
-  function patientCard(p){
-    const c = classifyLevel(p.level);
-    const levelVis = p._showLevel? `<span class="font-bold ${c.cls}">${p.level.toFixed(2)} ng/mL</span> <span class="text-xs ${c.cls}">(${c.lab})</span>` : '<span class="text-slate-400">(hidden)</span>'; 
-    const meterW = clamp((p.level/3.5)*100, 2, 100);
-
-    return `<div class="card bg-white p-4" id="${p.id}">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-lg font-bold text-slate-800">${p.name}</div>
-          <div class="text-slate-500 text-sm">Condition: ${p.dx} • Renal status: ${p.renal}</div>
-          <div class="text-slate-500 text-xs mt-1">Concurrent factors: Amiodarone <strong>${p.amio?'Yes':'No'}</strong> • Loop diuretic <strong>${p.loop?'Yes':'No'}</strong></div>
+    function patientCard(p){ const c=classifyLevel(p.level); const levelVis=p._showLevel? `<span class="font-bold ${c.cls}">${p.level.toFixed(2)} ng/mL</span> <span class="text-xs ${c.cls}">(${c.lab})</span>`:'<span class="text-slate-400">(hidden)</span>'; const meterW=Math.max(2,Math.min(100,(p.level/3.5)*100));
+      return `<div class="card bg-white p-4" id="${p.id}">
+        <div class="flex items-start justify-between">
+          <div>
+            <div class="text-lg font-bold text-slate-800">${p.name}</div>
+            <div class="text-slate-500 text-sm">Condition: ${p.dx} • Renal status: ${p.renal}</div>
+          </div>
+          <div>${p._lastEvent||''}</div>
         </div>
-        <div>${p._lastEvent||''}</div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
-        <div>Digoxin level: ${levelVis}
-          <div class="meter mt-1"><span style="width:${meterW}%"></span></div>
+        <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
+          <div>Digoxin level: ${levelVis}
+            <div class="meter mt-1"><span style="width:${meterW}%"></span></div>
+          </div>
+          <div>Electrolytes: K⁺ <strong>${p.k.toFixed(2)}</strong> • Mg²⁺ <strong>${p.mg.toFixed(2)}</strong> • Ca²⁺ <strong>${p.ca.toFixed(2)}</strong></div>
         </div>
-        <div>Electrolytes: K⁺ <strong>${p.k.toFixed(2)}</strong> • Mg²⁺ <strong>${p.mg.toFixed(2)}</strong> • Ca²⁺ <strong>${p.ca.toFixed(2)}</strong></div>
-      </div>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <label class="inline-flex items-center gap-2 bg-slate-100 px-3 py-2 rounded">
+            <span class="text-sm">Dose</span>
+            <select class="bg-white border rounded px-2 py-1 text-sm" onchange="window.__setDose('${p.id}', this.value)">
+              <option value="0" ${p.dose===0?'selected':''}>Hold</option>
+              <option value="0.125" ${p.dose===0.125?'selected':''}>0.125 mg</option>
+              <option value="0.25" ${p.dose===0.25?'selected':''}>0.25 mg</option>
+            </select>
+          </label>
+          <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-3 py-2 rounded" onclick="window.__orderLevel('${p.id}')">Order level</button>
+        </div>
+      </div>`; }
 
-      <div class="mt-3 flex flex-wrap gap-2">
-        <label class="inline-flex items-center gap-2 bg-slate-100 px-3 py-2 rounded">
-          <span class="text-sm">Dose</span>
-          <select class="bg-white border rounded px-2 py-1 text-sm" onchange="setDose('${p.id}', this.value)">
-            <option value="0" ${p.dose===0?'selected':''}>Hold</option>
-            <option value="0.125" ${p.dose===0.125?'selected':''}>0.125 mg</option>
-            <option value="0.25" ${p.dose===0.25?'selected':''}>0.25 mg</option>
-          </select>
-        </label>
-        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded" onclick="correctElectrolytesById('${p.id}')">Correct K⁺/Mg²⁺</button>
-        <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-3 py-2 rounded" onclick="orderLevelById('${p.id}')">Order level</button>
-        <button class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-2 rounded" onclick="giveFabById('${p.id}')">Give Fab</button>
-      </div>
+    function render(){ const host=document.getElementById('patients'); if(!host) return; host.innerHTML=PATIENTS.map(patientCard).join(''); }
 
-      <div class="mt-2 text-sm">Status: ${p.status==='critical'? '<span class="danger font-semibold">critical</span>' : p.status==='watch'? '<span class="warn font-semibold">watch</span>' : '<span class="ok font-semibold">stable</span>'}</div>
-    </div>`;
-  }
+    window.__setDose=function(id,v){ const p=PATIENTS.find(x=>x.id===id); p.dose=+v; p._lastEvent=eventBadge(`Dose set to ${v} mg`,'info'); render(); };
+    window.__orderLevel=function(id){ const p=PATIENTS.find(x=>x.id===id); if(!p) return; if(!p._sampled){ p.level=+(p.level+baseDoseToConc(p.dose)*0.6).toFixed(2); p._sampled=true; p._lastEvent=eventBadge('Level drawn (post‑dose sample)','info'); } p._showLevel=true; render(); };
 
-  function render(){
-    const host = document.getElementById('patients');
-    host.innerHTML = PATIENTS.map(patientCard).join('');
-  }
+    window.advanceDay=function(){ PATIENTS.forEach(p=>{ p._sampled=false; p._showLevel=false; applyDayUpdate(p); }); if(day<DAYS_TOTAL){ setDay(day+1); render(); } };
+    window.prevDay=function(){ alert('Time only moves forward in this simulation.'); };
 
-  // ======= Controls =======
-  function setDose(id, v){ const p = PATIENTS.find(x=>x.id===id); p.dose = +v; p._lastEvent = eventBadge(`Dose set to ${v} mg`, 'info'); setScore(score+1); render(); }
-  function correctElectrolytesById(id){ const p = PATIENTS.find(x=>x.id===id); correctElectrolytes(p); }
-  function orderLevelById(id){ const p = PATIENTS.find(x=>x.id===id); orderLevel(p); }
-  function giveFabById(id){ const p = PATIENTS.find(x=>x.id===id); giveFab(p); }
+    window.forceRender=function(){ try{ render(); const host=document.getElementById('patients'); if(host.children.length===0) diag('Force Render: patients still empty — HTML around #patients may be modified.'); }catch(e){ diag('Force Render error: '+e.message); } };
 
-  // ======= Day Flow =======
-  function advanceDay(){
-    // score minor penalty if advancing with hidden levels
-    PATIENTS.forEach(p=>{ if(!p._showLevel) setScore(score-1) });
-
-    PATIENTS.forEach(p=>{
-      // clear per-day flags
-      p._sampled = false;
-      p._showLevel = false;
-      applyDayUpdate(p);
-    });
-
-    // end conditions & bonuses
-    let allSafe = 0, anyToxic = 0;
-    PATIENTS.forEach(p=>{
-      const c = classifyLevel(p.level).lab;
-      if(c==='Safe') allSafe++;
-      if(c==='Toxic') anyToxic++;
-      // reward proactive monitoring on the previous day
-    });
-
-    if(allSafe===PATIENTS.length) setScore(score+5);
-    if(anyToxic>0) setScore(score-4);
-
-    if(day < DAYS_TOTAL){ setDay(day+1); render(); }
-    else { endGame(); }
-  });
-
-    PATIENTS.forEach(applyDayUpdate);
-
-    // end conditions & bonuses
-    let allSafe = 0, anyToxic = 0;
-    PATIENTS.forEach(p=>{
-      const c = classifyLevel(p.level).lab;
-      if(c==='Safe') allSafe++;
-      if(c==='Toxic') anyToxic++;
-      // reward proactive monitoring
-      if(p._showLevel) setScore(score+1);
-    });
-
-    if(allSafe===PATIENTS.length) setScore(score+5);
-    if(anyToxic>0) setScore(score-4);
-
-    if(day < DAYS_TOTAL){ setDay(day+1); render(); }
-    else { endGame(); }
-  }
-
-  function prevDay(){ alert('Time only moves forward in this simulation.'); }
-
-  function endGame(){
-    const unstable = PATIENTS.filter(p=> classifyLevel(p.level).lab!=='Safe').length;
-    const win = document.getElementById('win');
-    win.classList.remove('hidden'); win.classList.add('flex');
-    setTimeout(()=>{ win.querySelector('div').classList.remove('scale-95','opacity-0'); },10);
-    const msg = unstable===0
-      ? `Perfect run. Final score: ${score}.`
-      : `Some patients were not in the safe range. Final score: ${score}.`;
-    document.getElementById('winMsg').textContent = msg;
-  }
-
-  // ======= Start / Init =======
-  window.startGame = function(){
-    try{
-      var intro=document.getElementById('intro');
-      var panel=document.getElementById('panel');
-      var patients=document.getElementById('patients');
-      if(intro) intro.classList.add('hidden');
-      if(panel) panel.classList.remove('hidden');
-      if(patients) patients.classList.remove('hidden');
-      if(typeof setScore==='function') setScore(0);
-      if(typeof setDay==='function') setDay(1);
-      if(typeof render==='function') render();
-      // verify patients rendered
-      var host=document.getElementById('patients');
-      if(host && host.children.length===0){
-        // try once more
-        if(typeof render==='function') render();
-        if(host.children.length===0){
-          var d=document.getElementById('diag');
-          if(d){ d.classList.remove('hidden'); d.textContent='Startup check: patients did not render. Please hard‑reload (Ctrl/Cmd+Shift+R). If persists, copy the first console error to me.'; }
-        }
-      }
-    }catch(e){
-      console.error('Start error',e);
-      var d=document.getElementById('diag');
-      if(d){ d.classList.remove('hidden'); d.textContent='Start error: '+(e&&e.message?e.message:e); }
-      alert('Start error: '+(e&&e.message?e.message:e));
+    function startGame(){ try{ hide('#intro'); show('#panel'); show('#patients'); setScore(0); setDay(1); render(); const host=document.getElementById('patients'); if(host.children.length===0){ diag('Startup: patients did not render. Click Force Render, then send me any red console error.'); } }catch(e){ diag('Start error: '+e.message); }
     }
-  }
-  // surface runtime errors for easier debugging
-  window.addEventListener('error', function(ev){ var d=document.getElementById('diag'); if(d){ d.classList.remove('hidden'); d.textContent='Runtime error: '+ev.message; } });
+
+    // Bind start
+    document.getElementById('btnStart').addEventListener('click', startGame);
+  })();
   </script>
-
-  <!--
-  References used to set general thresholds and game logic notes (for students; not clinical advice):
-  • StatPearls: Digoxin — typical range & monitoring; toxicity factors. https://www.ncbi.nlm.nih.gov/books/NBK556025/
-  • Cleveland Clinic — Normal digoxin levels 0.5–2.0 ng/mL. https://my.clevelandclinic.org/health/treatments/24910-digoxin-levels
-  • Medscape eMedicine — Therapeutic 0.8–2.0; toxic >2.4 ng/mL; toxicity can occur below 2 with risk factors. https://emedicine.medscape.com/article/2089975-overview
-  • StatPearls: Cardiac Glycoside/Digoxin Toxicity — electrolyte effects (hypoK, hypoMg, hyperCa). https://www.ncbi.nlm.nih.gov/books/NBK459165/
-  • FDA: DigiFab label — antidote for life‑threatening digoxin toxicity. https://www.fda.gov/media/74693/download
-  -->
 </body>
 </html>
