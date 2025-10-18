@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Digitalis Survivor — A Pharmacology Adventure (By Dr. Ahmed Sayed)</title>
+  <title>SpectroQuest 220 nm — Digoxin Lab (By Dr. Ahmed Sayed)</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" rel="stylesheet">
@@ -12,265 +12,272 @@
     body{font-family:'Poppins',ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
     .card{border-radius:14px;box-shadow:0 6px 18px rgba(0,0,0,.08)}
     .badge{border-radius:999px;padding:.25rem .6rem;font-weight:700}
-    .meter{height:10px;border-radius:999px;background:#e2e8f0;overflow:hidden}
-    .meter>span{display:block;height:100%;background:#10b981}
-    .danger{color:#dc2626}
-    .warn{color:#d97706}
-    .ok{color:#059669}
-    .muted{color:#64748b}
+    canvas{image-rendering: crisp-edges}
+    .muted{color:#64748b}.ok{color:#059669}.warn{color:#d97706}.danger{color:#dc2626}
   </style>
 </head>
 <body class="bg-slate-50 min-h-screen">
+  <!-- HEADER -->
   <header class="sticky top-0 z-10 bg-white/90 backdrop-blur border-b border-slate-200">
     <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between">
       <div>
-        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800">Digitalis Survivor — A Pharmacology Adventure</h1>
-        <p class="text-slate-500 text-sm">By Dr. Ahmed Sayed • Multi-day clinical simulation: dosing, monitoring, electrolytes, and rescue</p>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-slate-800">SpectroQuest 220 nm — Digoxin Lab</h1>
+        <p class="text-slate-500 text-sm">By Dr. Ahmed Sayed • Build a calibration curve, analyze an unknown, and judge clinical safety</p>
       </div>
       <div class="flex items-center gap-2">
         <span class="badge bg-emerald-100 text-emerald-800" id="score">Score: 0</span>
-        <span class="badge bg-sky-100 text-sky-800" id="day">Day 1 / 5</span>
+        <span class="badge bg-sky-100 text-sky-800" id="stage">Stage 1/3</span>
       </div>
     </div>
   </header>
 
   <main class="max-w-6xl mx-auto px-4 py-6 space-y-6">
-    <!-- Intro / Tutorial -->
+    <!-- INTRO -->
     <section id="intro" class="card bg-white p-6">
-      <h2 class="text-xl font-bold text-slate-800 mb-2">Welcome to Digitalis Survivor</h2>
-      <p class="text-slate-700">You are the on‑call clinical pharmacist. Keep all three patients stable for <strong>5 days</strong>. Each day you must set doses, correct electrolytes, and respond to events.</p>
+      <h2 class="text-xl font-bold text-slate-800 mb-2">Welcome to SpectroQuest 220 nm</h2>
+      <p class="text-slate-700">Use UV‑Vis spectrophotometry at <strong>220 nm</strong> to quantify digoxin. Create standards, measure absorbances with realistic noise, fit a calibration line (<em>A = m·C + b</em>), then determine the concentration of an unknown and classify it as <em>Sub‑therapeutic</em>, <em>Safe</em>, <em>Borderline</em>, or <em>Toxic</em>.</p>
       <ul class="list-disc pl-6 text-slate-600 mt-2">
-        <li><strong>Therapeutic levels</strong> are usually <em>~0.5–2.0 ng/mL</em>; levels &gt; 2.0 raise risk, and &gt; 3.0 suggest toxicity. Always interpret with clinical context and electrolytes.</li>
-        <li><strong>Hypokalemia / hypomagnesemia</strong> increase digoxin sensitivity; <strong>renal failure</strong> slows clearance; <strong>hypercalcemia</strong> may potentiate toxicity.</li>
-        <li>In severe toxicity, consider <strong>digoxin‑immune Fab</strong>.</li>
+        <li>Beer–Lambert law: <em>A = ε·l·C</em> (absorbance is proportional to concentration at fixed pathlength).</li>
+        <li>We model instrument noise (±0.02 A.U.). Collect good data and fit with linear regression.</li>
+        <li>Clinical ranges (ng/mL): Safe ≈ 0.5–2.0; Borderline 2.0–3.0; Toxic &gt; 3.0.</li>
       </ul>
-      <button class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg" onclick="startGame()">Start</button>
+      <button id="btnStart" type="button" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg">Start</button>
     </section>
 
-    <!-- Dashboard / Global Events -->
-    <section id="panel" class="card bg-white p-4 hidden">
-      <div class="flex items-center justify-between gap-3">
-        <div class="flex items-center gap-2">
-          <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold py-2 px-4 rounded-lg" onclick="prevDay()">Prev</button>
-          <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg" onclick="advanceDay()">Advance Day</button>
+    <!-- STAGE 1: Standards & Measurement -->
+    <section id="s1" class="card bg-white p-6 hidden">
+      <h3 class="text-lg font-bold text-slate-800">Stage 1 — Prepare Standards & Measure at 220 nm</h3>
+      <p class="text-slate-600 text-sm mb-3">Click <strong>Measure</strong> to obtain absorbance for each standard concentration. Noise is added to simulate real instruments.</p>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <table class="w-full text-sm">
+            <thead><tr class="text-left text-slate-500"><th class="py-1">Std</th><th>Conc (ng/mL)</th><th>A (measured)</th><th></th></tr></thead>
+            <tbody id="stdRows"></tbody>
+          </table>
+          <div class="mt-3 flex gap-2">
+            <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-3 py-2 rounded" id="btnMeasureAll">Measure All</button>
+            <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded" id="btnFit">Fit Calibration (A = m·C + b)</button>
+          </div>
+          <div class="mt-2 text-sm">Fit: <span id="fitText" class="font-semibold">—</span></div>
+          <div class="text-sm">R²: <span id="r2" class="font-semibold">—</span></div>
         </div>
-        <div class="text-slate-600 text-sm">Tip: Correct K⁺/Mg²⁺ before increasing the dose.</div>
+        <div>
+          <canvas id="chart" width="520" height="360" class="bg-slate-100 rounded"></canvas>
+        </div>
       </div>
     </section>
 
-    <!-- Patients Grid -->
-    <section id="patients" class="grid md:grid-cols-3 gap-4 hidden"></section>
-
-    <!-- Win Modal -->
-    <div id="win" class="fixed inset-0 bg-black/60 hidden items-center justify-center p-4">
-      <div class="bg-white rounded-2xl shadow-2xl p-8 text-center max-w-md w-full transform transition-all scale-95 opacity-0">
-        <div class="text-8xl mb-4">🏆</div>
-        <h2 class="text-3xl font-bold text-slate-800 mb-2">All Patients Discharged!</h2>
-        <p id="winMsg" class="text-slate-600 mb-6 text-lg"></p>
-        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-8 rounded-lg text-lg" onclick="location.reload()">Play Again</button>
+    <!-- STAGE 2: Unknown Analysis -->
+    <section id="s2" class="card bg-white p-6 hidden">
+      <h3 class="text-lg font-bold text-slate-800">Stage 2 — Analyze the Unknown</h3>
+      <p class="text-slate-600 text-sm mb-3">Click <strong>Measure Unknown</strong> to obtain A(unknown) with realistic noise; then compute C(unknown) using your fitted line.</p>
+      <div class="grid md:grid-cols-2 gap-4 items-start">
+        <div class="space-y-2 text-sm">
+          <div>Measured A(unknown): <span id="Aunk" class="font-semibold">—</span></div>
+          <div>Calculated C(unknown): <span id="Cunk" class="font-semibold">—</span> ng/mL</div>
+          <div>Absolute error vs. true: <span id="err" class="font-semibold">—</span> ng/mL</div>
+          <div>Safety classification: <span id="safety" class="font-bold">—</span></div>
+          <div class="flex gap-2 mt-3">
+            <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-3 py-2 rounded" id="btnMeasureUnknown">Measure Unknown</button>
+            <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded" id="btnAnalyze">Analyze Unknown</button>
+          </div>
+        </div>
+        <div>
+          <canvas id="chart2" width="520" height="360" class="bg-slate-100 rounded"></canvas>
+        </div>
       </div>
-    </div>
+    </section>
+
+    <!-- STAGE 3: Report & Reflection -->
+    <section id="s3" class="card bg-white p-6 hidden">
+      <h3 class="text-lg font-bold text-slate-800">Stage 3 — Report</h3>
+      <p class="text-slate-600 text-sm">Your calibration and classification results are summarized below. Aim for high R² and &lt; 0.1 ng/mL absolute error.</p>
+      <div class="grid md:grid-cols-3 gap-4 text-sm">
+        <div class="card bg-emerald-50 p-4">
+          <div class="text-slate-500">Calibration</div>
+          <div id="repFit" class="font-semibold text-slate-800">—</div>
+          <div>R²: <span id="repR2">—</span></div>
+        </div>
+        <div class="card bg-sky-50 p-4">
+          <div class="text-slate-500">Unknown</div>
+          <div>A: <span id="repA">—</span></div>
+          <div>C: <span id="repC">—</span> ng/mL</div>
+          <div>Error: <span id="repErr">—</span> ng/mL</div>
+        </div>
+        <div class="card bg-amber-50 p-4">
+          <div class="text-slate-500">Safety</div>
+          <div id="repSafety" class="font-bold">—</div>
+        </div>
+      </div>
+      <div class="mt-4">
+        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg" onclick="location.reload()">Play Again</button>
+      </div>
+    </section>
   </main>
 
   <script>
-  // ======= Utility & State =======
+  // ======= Utilities =======
   const $ = (sel, root=document) => root.querySelector(sel);
   const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-  function clamp(v,min,max){return Math.max(min,Math.min(max,v))}
-  function rand(a,b){return a + Math.random()*(b-a)}
+  const clamp = (v,min,max) => Math.max(min, Math.min(max, v));
+  const randn = (sd=1) => {
+    // Box-Muller
+    let u=0,v=0; while(u===0) u=Math.random(); while(v===0) v=Math.random();
+    return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v)*sd;
+  };
 
-  const DAYS_TOTAL = 5;
-  let day = 1;
-  let score = 0;
+  // ======= Game State =======
+  let score=0; const setScore=v=>{ score=Math.max(0,Math.round(v)); $('#score').textContent='Score: '+score };
+  let stage=1; const setStage=v=>{ stage=v; $('#stage').textContent=`Stage ${stage}/3`; };
 
-  const scoreEl = () => document.getElementById('score');
-  const dayEl = () => document.getElementById('day');
+  // True model (hidden from player)
+  const TRUE = { eps: 0.0028, l: 1.0, b: 0.02 }; // A = eps*l*C + b (C in ng/mL scaled to plausible A)
+  const NOISE_SD = 0.02; // ± ~0.02 AU typical bench noise
 
-  function setScore(v){ score = Math.max(0, Math.round(v)); scoreEl().textContent = 'Score: '+score; localStorage.setItem('ds_score', score) }
-  function setDay(v){ day = v; dayEl().textContent = `Day ${day} / ${DAYS_TOTAL}`; localStorage.setItem('ds_day', day) }
+  // Standards (ng/mL)
+  const STDS = [0.2, 0.5, 1.0, 2.0, 3.0]; // broad enough range
+  let meas = STDS.map(c=>({C:c, A:null}));
+  let fit = { m:null, b:null, r2:null };
+  let unknownTrue = +(Math.random()*2.6 + 0.2).toFixed(2); // 0.2–2.8 ng/mL typical
+  let Aunk = null, Cunk = null, absErr = null, safety=null;
 
-  // Classification per references (general guidance, interpret clinically)
-  // 0.5–2.0 ng/mL: typical safe range (StatPearls/Cleveland Clinic)
-  // >2.0 up to 3.0: borderline/high risk
-  // >3.0: toxic/very high risk
-  function classifyLevel(c){
-    if(c < 0.5) return {lab:'Sub-therapeutic', cls:'muted'};
-    if(c <= 2.0) return {lab:'Safe', cls:'ok'};
-    if(c <= 3.0) return {lab:'Borderline', cls:'warn'};
-    return {lab:'Toxic', cls:'danger'};
+  function A_of_C(c){ return TRUE.eps*TRUE.l*c + TRUE.b }
+
+  // ======= Drawing =======
+  function drawAxes(ctx,w,h,xmin,xmax,ymin,ymax){
+    ctx.fillStyle = '#0f172a'; ctx.font='12px sans-serif';
+    ctx.strokeStyle='#94a3b8'; ctx.lineWidth=1; ctx.beginPath();
+    ctx.moveTo(40,h-30); ctx.lineTo(w-10,h-30); ctx.lineTo(w-10,20); ctx.stroke();
+    ctx.fillText('Conc (ng/mL)', w/2-40, h-8);
+    ctx.save(); ctx.translate(12,h/2); ctx.rotate(-Math.PI/2); ctx.fillText('Absorbance (220 nm)', -60, 0); ctx.restore();
+    // ticks
+    for(let x=0;x<=5;x++){ const cx = 40 + x*(w-50)/5; ctx.fillStyle='#64748b'; ctx.fillRect(cx, h-30, 1, 6); ctx.fillText((x).toString(), cx-3, h-12) }
+    for(let y=0;y<=5;y++){ const cy = h-30 - y*(h-50)/5; ctx.fillStyle='#64748b'; ctx.fillRect(35, cy, 6,1); ctx.fillText((y*0.2).toFixed(1), 10, cy+4) }
+  }
+  function toCanvasX(c,w){ return 40 + (c/5)*(w-50) }
+  function toCanvasY(a,h){ const maxA=1.0; return (h-30) - (a/maxA)*(h-50) }
+
+  function plotPoints(ctx, data, color='#0ea5e9', w=520, h=360){
+    ctx.fillStyle=color;
+    data.forEach(d=>{ if(d.A!==null){ ctx.beginPath(); ctx.arc(toCanvasX(d.C,w), toCanvasY(d.A,h), 4, 0, 2*Math.PI); ctx.fill(); }});
+  }
+  function plotLine(ctx, m,b,color='#10b981', w=520, h=360){
+    const x1=0, x2=5; const y1=m*x1+b, y2=m*x2+b;
+    ctx.strokeStyle=color; ctx.lineWidth=2; ctx.beginPath();
+    ctx.moveTo(toCanvasX(x1,w), toCanvasY(y1,h)); ctx.lineTo(toCanvasX(x2,w), toCanvasY(y2,h)); ctx.stroke();
   }
 
-  function eventBadge(txt, type='info'){
-    const colors = {info:'bg-sky-100 text-sky-800', good:'bg-emerald-100 text-emerald-800', bad:'bg-rose-100 text-rose-800', warn:'bg-amber-100 text-amber-800'};
-    return `<span class="badge ${colors[type]||colors.info}">${txt}</span>`;
+  function drawStdChart(){
+    const c = $('#chart'); const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+    drawAxes(ctx,c.width,c.height,0,5,0,1);
+    plotPoints(ctx, meas, '#0ea5e9', c.width, c.height);
+    if(fit.m!==null) plotLine(ctx, fit.m, fit.b, '#10b981', c.width, c.height);
+  }
+  function drawUnknownChart(){
+    const c = $('#chart2'); const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
+    drawAxes(ctx,c.width,c.height,0,5,0,1);
+    if(Aunk!==null){ ctx.fillStyle='#0f766e'; ctx.beginPath(); ctx.arc(toCanvasX(unknownTrue, c.width), toCanvasY(Aunk, c.height), 5, 0, 2*Math.PI); ctx.fill(); }
+    if(fit.m!==null) plotLine(ctx, fit.m, fit.b, '#10b981', c.width, c.height);
   }
 
-  // ======= Patient Models =======
-  // Simplified PK/PD for teaching: not clinical dosing advice.
-  const PATIENTS = [
-    { id:'p1', name:'AH (65M)', dx:'HFrEF + AF', renal:'CKD‑2', elim:0.30, // fraction cleared per day
-      dose:0, level:0.8, k:4.0, mg:1.9, ca:9.6, amio:false, loop:true, status:'stable' },
-    { id:'p2', name:'NS (48F)', dx:'AF (paroxysmal)', renal:'Normal', elim:0.40,
-      dose:0, level:0.4, k:3.2, mg:1.6, ca:10.8, amio:false, loop:false, status:'stable' },
-    { id:'p3', name:'RM (73M)', dx:'HFpEF + CKD‑4', renal:'CKD‑4', elim:0.15,
-      dose:0, level:1.1, k:3.6, mg:1.7, ca:9.1, amio:true, loop:true, status:'fragile' },
-  ];
-
-  function baseDoseToConc(dose){ // mg to delta ng/mL (toy model)
-    if(dose <= 0) return 0;
-    if(dose <= 0.125) return rand(0.18,0.32); // conservative increment for 0.125 mg
-    if(dose <= 0.25) return rand(0.35,0.65);  // increment for 0.25 mg
-    return rand(0.7,0.9);
+  // ======= Regression =======
+  function linearRegression(x,y){
+    const n=x.length; const sx=x.reduce((a,b)=>a+b,0); const sy=y.reduce((a,b)=>a+b,0);
+    const sxx=x.reduce((a,b)=>a+b*b,0); const sxy=x.reduce((a,xi,i)=>a+xi*y[i],0);
+    const m=(n*sxy - sx*sy)/(n*sxx - sx*sx); const b=(sy - m*sx)/n;
+    const yhat=x.map(xi=>m*xi+b); const ym=sy/n;
+    const ssRes=y.reduce((a,yi,i)=>a+(yi-yhat[i])**2,0); const ssTot=y.reduce((a,yi)=>a+(yi-ym)**2,0);
+    const r2 = 1 - ssRes/ssTot; return {m,b,r2};
   }
 
-  function applyDayUpdate(p){
-    // elimination with renal factor
-    let elim = p.elim;
-    if(p.amio) elim -= 0.05; // amiodarone reduces clearance
-    elim = clamp(elim, 0.05, 0.6);
+  // ======= Safety classification =======
+  function classify(c){ if(c<0.5) return {lab:'Sub-therapeutic', cls:'muted'}; if(c<=2.0) return {lab:'Safe', cls:'ok'}; if(c<=3.0) return {lab:'Borderline', cls:'warn'}; return {lab:'Toxic', cls:'danger'}; }
 
-    // new level = remaining + today input
-    const remaining = p.level * (1 - elim);
-    const input = baseDoseToConc(p.dose);
-    p.level = +(remaining + input).toFixed(2);
-
-    // electrolyte drift & events
-    if(p.loop && Math.random()<0.45){ p.k = +(p.k - rand(0.1,0.3)).toFixed(2); p.mg = +(p.mg - rand(0.05,0.15)).toFixed(2); p._lastEvent = eventBadge('Loop diuretic losses', 'warn'); }
-    if(p.amio && Math.random()<0.25){ p._lastEvent = eventBadge('Amiodarone interaction', 'warn'); }
-    if(Math.random()<0.15){ p.ca = +(p.ca + rand(0.1,0.3)).toFixed(2); p._lastEvent = eventBadge('Calcium up', 'warn'); }
-
-    // cap ranges
-    p.k = clamp(p.k, 2.6, 5.8); p.mg = clamp(p.mg, 1.1, 2.5); p.ca = clamp(p.ca, 8.2, 11.8);
-
-    // symptoms score (toy): rises with high level + low K/Mg + high Ca
-    let s = 0; if(p.level>2.0) s += (p.level-2.0)*2; if(p.level>3.0) s += 1.5;
-    if(p.k<3.5) s += (3.5 - p.k); if(p.mg<1.7) s += (1.7 - p.mg)*0.8; if(p.ca>10.5) s += (p.ca-10.5)*0.7;
-    p.status = s>3.5? 'critical' : s>1.5? 'watch' : 'stable';
-  }
-
-  function correctElectrolytes(p){
-    p.k = +(p.k + 0.6).toFixed(2); p.mg = +(p.mg + 0.25).toFixed(2);
-    p.k = Math.min(p.k, 4.8); p.mg = Math.min(p.mg, 2.2);
-    p._lastEvent = eventBadge('Electrolytes corrected', 'good');
-    setScore(score+2);
-    render();
-  }
-
-  function giveFab(p){
-    // Antidote effect: rapidly neutralizes circulating digoxin (toy model)
-    p.level = +(p.level*0.15).toFixed(2);
-    p.status = 'stable';
-    p._lastEvent = eventBadge('Digoxin‑immune Fab given', 'good');
-    setScore(score+12);
-    render();
-  }
-
-  function orderLevel(p){ p._showLevel = true; setScore(score+1); render(); }
-
-  // ======= UI Rendering =======
-  function patientCard(p){
-    const c = classifyLevel(p.level);
-    const levelVis = p._showLevel? `<span class="font-bold ${c.cls}">${p.level.toFixed(2)} ng/mL</span> <span class="text-xs ${c.cls}">(${c.lab})</span>` : '<span class="text-slate-400">(hidden)</span>'; 
-    const meterW = clamp((p.level/3.5)*100, 2, 100);
-
-    return `<div class="card bg-white p-4" id="${p.id}">
-      <div class="flex items-start justify-between">
-        <div>
-          <div class="text-lg font-bold text-slate-800">${p.name}</div>
-          <div class="text-slate-500 text-sm">${p.dx} • ${p.renal}</div>
-        </div>
-        <div>${p._lastEvent||''}</div>
-      </div>
-
-      <div class="mt-3 grid grid-cols-2 gap-2 text-sm">
-        <div>Digoxin level: ${levelVis}
-          <div class="meter mt-1"><span style="width:${meterW}%"></span></div>
-        </div>
-        <div>Electrolytes: K⁺ <strong>${p.k.toFixed(2)}</strong> • Mg²⁺ <strong>${p.mg.toFixed(2)}</strong> • Ca²⁺ <strong>${p.ca.toFixed(2)}</strong></div>
-      </div>
-
-      <div class="mt-3 flex flex-wrap gap-2">
-        <label class="inline-flex items-center gap-2 bg-slate-100 px-3 py-2 rounded">
-          <span class="text-sm">Dose</span>
-          <select class="bg-white border rounded px-2 py-1 text-sm" onchange="setDose('${p.id}', this.value)">
-            <option value="0" ${p.dose===0?'selected':''}>Hold</option>
-            <option value="0.125" ${p.dose===0.125?'selected':''}>0.125 mg</option>
-            <option value="0.25" ${p.dose===0.25?'selected':''}>0.25 mg</option>
-          </select>
-        </label>
-        <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold px-3 py-2 rounded" onclick="correctElectrolytesById('${p.id}')">Correct K⁺/Mg²⁺</button>
-        <button class="bg-slate-200 hover:bg-slate-300 text-slate-800 font-semibold px-3 py-2 rounded" onclick="orderLevelById('${p.id}')">Order level</button>
-        <button class="bg-rose-600 hover:bg-rose-700 text-white font-semibold px-3 py-2 rounded" onclick="giveFabById('${p.id}')">Give Fab</button>
-      </div>
-
-      <div class="mt-2 text-sm">Status: ${p.status==='critical'? '<span class="danger font-semibold">critical</span>' : p.status==='watch'? '<span class="warn font-semibold">watch</span>' : '<span class="ok font-semibold">stable</span>'}</div>
-    </div>`;
-  }
-
-  function render(){
-    const host = document.getElementById('patients');
-    host.innerHTML = PATIENTS.map(patientCard).join('');
-  }
-
-  // ======= Controls =======
-  function setDose(id, v){ const p = PATIENTS.find(x=>x.id===id); p.dose = +v; p._lastEvent = eventBadge(`Dose set to ${v} mg`, 'info'); setScore(score+1); render(); }
-  function correctElectrolytesById(id){ const p = PATIENTS.find(x=>x.id===id); correctElectrolytes(p); }
-  function orderLevelById(id){ const p = PATIENTS.find(x=>x.id===id); orderLevel(p); }
-  function giveFabById(id){ const p = PATIENTS.find(x=>x.id===id); giveFab(p); }
-
-  // ======= Day Flow =======
-  function advanceDay(){
-    // score minor penalty if advancing with hidden levels
-    PATIENTS.forEach(p=>{ if(!p._showLevel) setScore(score-1) });
-
-    PATIENTS.forEach(applyDayUpdate);
-
-    // end conditions & bonuses
-    let allSafe = 0, anyToxic = 0;
-    PATIENTS.forEach(p=>{
-      const c = classifyLevel(p.level).lab;
-      if(c==='Safe') allSafe++;
-      if(c==='Toxic') anyToxic++;
-      // reward proactive monitoring
-      if(p._showLevel) setScore(score+1);
+  // ======= Stage Logic =======
+  function populateStdTable(){
+    const tbody = $('#stdRows'); tbody.innerHTML='';
+    meas.forEach((d,i)=>{
+      const tr=document.createElement('tr'); tr.innerHTML=`
+        <td class="py-1">S${i+1}</td>
+        <td>${d.C.toFixed(2)}</td>
+        <td id="A_${i}">${d.A===null?'—':d.A.toFixed(3)}</td>
+        <td><button class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-2 py-1 rounded" data-i="${i}">Measure</button></td>`;
+      tbody.appendChild(tr);
     });
-
-    if(allSafe===PATIENTS.length) setScore(score+5);
-    if(anyToxic>0) setScore(score-4);
-
-    if(day < DAYS_TOTAL){ setDay(day+1); render(); }
-    else { endGame(); }
+    // bind
+    $$('#stdRows button').forEach(btn=> btn.addEventListener('click', ev=>{
+      const i=+ev.currentTarget.getAttribute('data-i');
+      const a = A_of_C(meas[i].C) + randn(NOISE_SD);
+      meas[i].A = clamp(a, 0, 1.0);
+      setScore(score+1);
+      populateStdTable(); drawStdChart();
+    }));
   }
 
-  function prevDay(){ alert('Time only moves forward in this simulation.'); }
-
-  function endGame(){
-    const unstable = PATIENTS.filter(p=> classifyLevel(p.level).lab!=='Safe').length;
-    const win = document.getElementById('win');
-    win.classList.remove('hidden'); win.classList.add('flex');
-    setTimeout(()=>{ win.querySelector('div').classList.remove('scale-95','opacity-0'); },10);
-    const msg = unstable===0
-      ? `Perfect run. Final score: ${score}.`
-      : `Some patients were not in the safe range. Final score: ${score}.`;
-    document.getElementById('winMsg').textContent = msg;
+  function fitCalibration(){
+    const pts = meas.filter(d=>d.A!==null);
+    if(pts.length<3){ alert('Measure at least 3 standards before fitting.'); return; }
+    const x=pts.map(d=>d.C), y=pts.map(d=>d.A);
+    fit = linearRegression(x,y);
+    $('#fitText').textContent = `A = ${(fit.m).toFixed(4)}·C + ${(fit.b).toFixed(3)}`;
+    $('#r2').textContent = (fit.r2).toFixed(3);
+    drawStdChart();
+    setScore(score + Math.round(Math.max(0, fit.r2)*10));
+    // proceed to Stage 2
+    setStage(2); $('#s1').classList.add('hidden'); $('#s2').classList.remove('hidden'); drawUnknownChart();
   }
 
-  // ======= Start / Init =======
-  window.startGame = function(){
-    document.getElementById('intro').classList.add('hidden');
-    document.getElementById('panel').classList.remove('hidden');
-    document.getElementById('patients').classList.remove('hidden');
-    setScore(0); setDay(1); render();
+  function measureUnknown(){
+    Aunk = clamp(A_of_C(unknownTrue) + randn(NOISE_SD), 0, 1.0);
+    $('#Aunk').textContent = Aunk.toFixed(3);
+    drawUnknownChart();
   }
+
+  function analyzeUnknown(){
+    if(Aunk===null){ alert('Measure the unknown first.'); return; }
+    if(fit.m===null){ alert('Fit the calibration line first.'); return; }
+    Cunk = (Aunk - fit.b) / fit.m;
+    Cunk = Math.max(0, Cunk);
+    $('#Cunk').textContent = Cunk.toFixed(2);
+    absErr = Math.abs(Cunk - unknownTrue);
+    $('#err').textContent = absErr.toFixed(2);
+    const cls = classify(Cunk);
+    safety = cls.lab; const sEl = $('#safety'); sEl.textContent = safety; sEl.className = 'font-bold '+cls.cls;
+    // scoring
+    if(absErr<=0.10) setScore(score+15); else if(absErr<=0.25) setScore(score+8); else setScore(score+3);
+    // proceed to Stage 3
+    setStage(3); $('#s2').classList.add('hidden'); $('#s3').classList.remove('hidden');
+    $('#repFit').textContent = `A = ${(fit.m).toFixed(4)}·C + ${(fit.b).toFixed(3)}`;
+    $('#repR2').textContent = (fit.r2).toFixed(3);
+    $('#repA').textContent = Aunk.toFixed(3);
+    $('#repC').textContent = Cunk.toFixed(2);
+    $('#repErr').textContent = absErr.toFixed(2);
+    $('#repSafety').textContent = safety; $('#repSafety').className = 'font-bold '+cls.cls;
+  }
+
+  // ======= Start & Bindings =======
+  function startGame(){
+    $('#intro').classList.add('hidden');
+    $('#s1').classList.remove('hidden');
+    setScore(0); setStage(1);
+    populateStdTable(); drawStdChart(); drawUnknownChart();
+  }
+  window.startGame = startGame; // guarantee global
+  document.addEventListener('DOMContentLoaded', ()=>{
+    $('#btnStart').addEventListener('click', startGame);
+    $('#btnMeasureAll').addEventListener('click', ()=>{ meas.forEach((d,i)=>{ d.A = clamp(A_of_C(d.C)+randn(NOISE_SD), 0, 1.0); }); setScore(score+meas.length); populateStdTable(); drawStdChart(); });
+    $('#btnFit').addEventListener('click', fitCalibration);
+    $('#btnMeasureUnknown').addEventListener('click', measureUnknown);
+    $('#btnAnalyze').addEventListener('click', analyzeUnknown);
+  });
   </script>
 
-  <!--
-  References used to set general thresholds and game logic notes (for students; not clinical advice):
-  • StatPearls: Digoxin — typical range & monitoring; toxicity factors. https://www.ncbi.nlm.nih.gov/books/NBK556025/
-  • Cleveland Clinic — Normal digoxin levels 0.5–2.0 ng/mL. https://my.clevelandclinic.org/health/treatments/24910-digoxin-levels
-  • Medscape eMedicine — Therapeutic 0.8–2.0; toxic >2.4 ng/mL; toxicity can occur below 2 with risk factors. https://emedicine.medscape.com/article/2089975-overview
-  • StatPearls: Cardiac Glycoside/Digoxin Toxicity — electrolyte effects (hypoK, hypoMg, hyperCa). https://www.ncbi.nlm.nih.gov/books/NBK459165/
-  • FDA: DigiFab label — antidote for life‑threatening digoxin toxicity. https://www.fda.gov/media/74693/download
+  <!-- Educational references for students (non-executable):
+    • Beer–Lambert Law and UV‑Vis basics — LibreTexts: https://chem.libretexts.org/Bookshelves/Physical_and_Theoretical_Chemistry_Textbook_Maps/Supplemental_Modules_(Physical_and_Theoretical_Chemistry)/Spectroscopy/Electronic_Spectroscopy/Electronic_Spectroscopy_Basics/The_Beer-Lambert_Law
+    • UV‑Vis overview — LibreTexts Analytical Chemistry: https://chem.libretexts.org/Bookshelves/Analytical_Chemistry/Physical_Methods_in_Chemistry_and_Nano_Science_(Barron)/04%3A_Chemical_Speciation/4.04%3A_UV-Visible_Spectroscopy
+    • Calibration curves & linear regression — LibreTexts: https://chem.libretexts.org/Bookshelves/Analytical_Chemistry/Analytical_Chemistry_2.1_(Harvey)/05%3A_Standardizing_Analytical_Methods/5.04%3A_Linear_Regression_and_Calibration_Curves
+    • Digoxin therapeutic range (≈0.5–2.0 ng/mL) — Cleveland Clinic: https://my.clevelandclinic.org/health/treatments/24910-digoxin-levels
+    • Example of digoxin absorbance near 220 nm in UV methods: IJLPR 2021 (220 nm detection): https://ijlpr.com/index.php/journal/article/view/891
   -->
 </body>
 </html>
