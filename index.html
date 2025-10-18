@@ -76,6 +76,8 @@
       </div>
     </section>
 
+    <div id="diag" class="hidden mt-2 text-xs text-rose-700"></div>
+
     <!-- Patients Grid -->
     <section id="patients" class="grid md:grid-cols-3 gap-4 hidden"></section>
 
@@ -310,11 +312,35 @@
 
   // ======= Start / Init =======
   window.startGame = function(){
-    document.getElementById('intro').classList.add('hidden');
-    document.getElementById('panel').classList.remove('hidden');
-    document.getElementById('patients').classList.remove('hidden');
-    setScore(0); setDay(1); render();
+    try{
+      var intro=document.getElementById('intro');
+      var panel=document.getElementById('panel');
+      var patients=document.getElementById('patients');
+      if(intro) intro.classList.add('hidden');
+      if(panel) panel.classList.remove('hidden');
+      if(patients) patients.classList.remove('hidden');
+      if(typeof setScore==='function') setScore(0);
+      if(typeof setDay==='function') setDay(1);
+      if(typeof render==='function') render();
+      // verify patients rendered
+      var host=document.getElementById('patients');
+      if(host && host.children.length===0){
+        // try once more
+        if(typeof render==='function') render();
+        if(host.children.length===0){
+          var d=document.getElementById('diag');
+          if(d){ d.classList.remove('hidden'); d.textContent='Startup check: patients did not render. Please hard‑reload (Ctrl/Cmd+Shift+R). If persists, copy the first console error to me.'; }
+        }
+      }
+    }catch(e){
+      console.error('Start error',e);
+      var d=document.getElementById('diag');
+      if(d){ d.classList.remove('hidden'); d.textContent='Start error: '+(e&&e.message?e.message:e); }
+      alert('Start error: '+(e&&e.message?e.message:e));
+    }
   }
+  // surface runtime errors for easier debugging
+  window.addEventListener('error', function(ev){ var d=document.getElementById('diag'); if(d){ d.classList.remove('hidden'); d.textContent='Runtime error: '+ev.message; } });
   </script>
 
   <!--
