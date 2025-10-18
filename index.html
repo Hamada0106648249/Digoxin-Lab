@@ -164,7 +164,16 @@
   function hide(id){ document.getElementById(id).classList.add('hidden') }
   function el(html){ const t=document.createElement('template'); t.innerHTML=html.trim(); return t.content.firstElementChild }
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
-  function startGame(){ try{ hide('intro'); show('s1'); setStage(1); initS1(); }catch(e){ console.error('Start failed', e); } }
+  window.startGame = function(){
+  try{
+    var intro = document.getElementById('intro');
+    var s1 = document.getElementById('s1');
+    if(intro) intro.classList.add('hidden');
+    if(s1) s1.classList.remove('hidden');
+    if(typeof setStage==='function') setStage(1);
+    if(typeof initS1==='function') initS1();
+  }catch(e){ console.error('Start failed', e); alert('Start failed: '+(e&&e.message?e.message:e)); }
+}catch(e){ console.error('Start failed', e); } }
 
   // INTRO
   
