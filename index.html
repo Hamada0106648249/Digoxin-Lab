@@ -44,7 +44,25 @@
         <li><strong>Hypokalemia / hypomagnesemia</strong> increase digoxin sensitivity; <strong>renal failure</strong> slows clearance; <strong>hypercalcemia</strong> may potentiate toxicity.</li>
         <li>In severe toxicity, consider <strong>digoxin‑immune Fab</strong>.</li>
       </ul>
-      <button class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg" onclick="startGame()">Start</button>
+      <button id="btnStart" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg" onclick="startGame()">Start</button>
+      <script>(function(){
+        function fallbackStart(){
+          try{
+            var intro=document.getElementById('intro');
+            var panel=document.getElementById('panel');
+            var patients=document.getElementById('patients');
+            if(intro) intro.classList.add('hidden');
+            if(panel) panel.classList.remove('hidden');
+            if(patients) patients.classList.remove('hidden');
+            if(typeof setScore==='function') setScore(0);
+            if(typeof setDay==='function') setDay(1);
+            if(typeof render==='function') render();
+          }catch(e){ console.error('Start fallback error', e); alert('Start error: '+(e&&e.message?e.message:e)); }
+        }
+        if(typeof window.startGame!=='function') window.startGame=fallbackStart;
+        var btn=document.getElementById('btnStart');
+        if(btn && !btn._bound){ btn.addEventListener('click', function(){ if(typeof window.startGame==='function') window.startGame(); }); btn._bound=true; }
+      })();</script>
     </section>
 
     <!-- Dashboard / Global Events -->
