@@ -35,13 +35,21 @@
     <!-- INTRO -->
     <section id="intro" class="card bg-white p-6">
       <h2 class="text-xl font-bold text-slate-800 mb-2">Welcome to SpectroQuest 220 nm</h2>
-      <p class="text-slate-700">Use UV‑Vis spectrophotometry at <strong>220 nm</strong> to quantify digoxin. Create standards, measure absorbances with realistic noise, fit a calibration line (<em>A = m·C + b</em>), then determine the concentration of an unknown and classify it as <em>Sub‑therapeutic</em>, <em>Safe</em>, <em>Borderline</em>, or <em>Toxic</em>.</p>
-      <ul class="list-disc pl-6 text-slate-600 mt-2">
-        <li>Beer–Lambert law: <em>A = ε·l·C</em> (absorbance is proportional to concentration at fixed pathlength).</li>
-        <li>We model instrument noise (±0.02 A.U.). Collect good data and fit with linear regression.</li>
-        <li>Clinical ranges (ng/mL): Safe ≈ 0.5–2.0; Borderline 2.0–3.0; Toxic &gt; 3.0.</li>
-      </ul>
-      <button id="btnStart" type="button" class="mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg">Start</button>
+      <p class=\"text-slate-700\">Use UV‑Vis spectrophotometry at <strong>220 nm<\/strong> to quantify digoxin. Create standards, measure absorbances with realistic noise, fit a calibration line (<em>A = m·C + b<\/em>), then determine the concentration of an unknown and classify it.<\/p>
+      <div class=\"mt-3 grid md:grid-cols-2 gap-4 items-end\">
+        <div>
+          <label class=\"block text-sm text-slate-600 mb-1\">Scenario<\/label>
+          <select id=\"scenario\" class=\"bg-white border rounded px-3 py-2 text-sm\">
+            <option value=\"sub\" selected>Sub‑therapeutic (current)<\/option>
+            <option value=\"ther\">Therapeutic<\/option>
+            <option value=\"tox\">Toxic<\/option>
+            <option value=\"htox\">Highly toxic (Fab indicated)<\/option>
+          <\/select>
+        <\/div>
+        <div>
+          <button id=\"btnStart\" type=\"button\" class=\"mt-4 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-5 rounded-lg\">Start<\/button>
+        <\/div>
+      <\/div>
     </section>
 
     <!-- STAGE 1: Standards & Measurement -->
@@ -131,14 +139,15 @@
   let stage=1; const setStage=v=>{ stage=v; $('#stage').textContent=`Stage ${stage}/3`; };
 
   // True model (hidden from player)
-  const TRUE = { eps: 0.0028, l: 1.0, b: 0.02 }; // A = eps*l*C + b (C in ng/mL scaled to plausible A)
-  const NOISE_SD = 0.02; // ± ~0.02 AU typical bench noise
+  const TRUE = { eps: 0.02, l: 1.0, b: 0.002 }; // A = eps*l*C + b ; scaled so A ~ 0.00–0.10 at 0–5 ng/mL // A = eps*l*C + b (C in ng/mL scaled to plausible A)
+  const NOISE_SD = 0.002; // ± ~0.002 AU noise for 0–0.1 range // ± ~0.02 AU typical bench noise
 
   // Standards (ng/mL)
-  const STDS = [0.2, 0.5, 1.0, 2.0, 3.0]; // broad enough range
+  const STDS = [0.2, 0.5, 1.0, 2.0, 3.0, 4.0, 5.0]; // broad enough range
   let meas = STDS.map(c=>({C:c, A:null}));
   let fit = { m:null, b:null, r2:null };
-  let unknownTrue = +(Math.random()*2.6 + 0.2).toFixed(2); // 0.2–2.8 ng/mL typical
+  let scenario='sub';
+  let unknownTrue = 0.6; // set in startGame based on scenario // 0.2–2.8 ng/mL typical
   let Aunk = null, Cunk = null, absErr = null, safety=null;
 
   function A_of_C(c){ return TRUE.eps*TRUE.l*c + TRUE.b }
@@ -150,12 +159,13 @@
     ctx.moveTo(40,h-30); ctx.lineTo(w-10,h-30); ctx.lineTo(w-10,20); ctx.stroke();
     ctx.fillText('Conc (ng/mL)', w/2-40, h-8);
     ctx.save(); ctx.translate(12,h/2); ctx.rotate(-Math.PI/2); ctx.fillText('Absorbance (220 nm)', -60, 0); ctx.restore();
-    // ticks
     for(let x=0;x<=5;x++){ const cx = 40 + x*(w-50)/5; ctx.fillStyle='#64748b'; ctx.fillRect(cx, h-30, 1, 6); ctx.fillText((x).toString(), cx-3, h-12) }
+    for(let i=0;i<=5;i++){ const a=i*0.02; const cy = h-30 - (a/0.10)*(h-50); ctx.fillStyle='#64748b'; ctx.fillRect(35, cy, 6,1); ctx.fillText(a.toFixed(2), 6, cy+4) }
+  }
     for(let y=0;y<=5;y++){ const cy = h-30 - y*(h-50)/5; ctx.fillStyle='#64748b'; ctx.fillRect(35, cy, 6,1); ctx.fillText((y*0.2).toFixed(1), 10, cy+4) }
   }
   function toCanvasX(c,w){ return 40 + (c/5)*(w-50) }
-  function toCanvasY(a,h){ const maxA=1.0; return (h-30) - (a/maxA)*(h-50) }
+  function toCanvasY(a,h){ const maxA=0.10; return (h-30) - (a/maxA)*(h-50) }
 
   function plotPoints(ctx, data, color='#0ea5e9', w=520, h=360){
     ctx.fillStyle=color;
@@ -169,13 +179,13 @@
 
   function drawStdChart(){
     const c = $('#chart'); const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
-    drawAxes(ctx,c.width,c.height,0,5,0,1);
+    drawAxes(ctx,c.width,c.height,0,5,0,0.1);
     plotPoints(ctx, meas, '#0ea5e9', c.width, c.height);
     if(fit.m!==null) plotLine(ctx, fit.m, fit.b, '#10b981', c.width, c.height);
   }
   function drawUnknownChart(){
     const c = $('#chart2'); const ctx = c.getContext('2d'); ctx.clearRect(0,0,c.width,c.height);
-    drawAxes(ctx,c.width,c.height,0,5,0,1);
+    drawAxes(ctx,c.width,c.height,0,5,0,0.1);
     if(Aunk!==null){ ctx.fillStyle='#0f766e'; ctx.beginPath(); ctx.arc(toCanvasX(unknownTrue, c.width), toCanvasY(Aunk, c.height), 5, 0, 2*Math.PI); ctx.fill(); }
     if(fit.m!==null) plotLine(ctx, fit.m, fit.b, '#10b981', c.width, c.height);
   }
@@ -191,7 +201,13 @@
   }
 
   // ======= Safety classification =======
-  function classify(c){ if(c<0.5) return {lab:'Sub-therapeutic', cls:'muted'}; if(c<=2.0) return {lab:'Safe', cls:'ok'}; if(c<=3.0) return {lab:'Borderline', cls:'warn'}; return {lab:'Toxic', cls:'danger'}; }
+  function classify(c){
+    if(c<0.5) return {lab:'Sub-therapeutic', cls:'muted'};
+    if(c<=2.0) return {lab:'Safe', cls:'ok'};
+    if(c<=3.0) return {lab:'Borderline', cls:'warn'};
+    if(c<=4.0) return {lab:'Toxic', cls:'danger'};
+    return {lab:'Highly toxic — Fab indicated', cls:'danger'};
+  }; if(c<=2.0) return {lab:'Safe', cls:'ok'}; if(c<=3.0) return {lab:'Borderline', cls:'warn'}; return {lab:'Toxic', cls:'danger'}; }
 
   // ======= Stage Logic =======
   function populateStdTable(){
@@ -228,7 +244,7 @@
   }
 
   function measureUnknown(){
-    Aunk = clamp(A_of_C(unknownTrue) + randn(NOISE_SD), 0, 1.0);
+    Aunk = clamp(A_of_C(unknownTrue) + randn(NOISE_SD), 0, 0.10);
     $('#Aunk').textContent = Aunk.toFixed(3);
     drawUnknownChart();
   }
@@ -265,7 +281,7 @@
   window.startGame = startGame; // guarantee global
   document.addEventListener('DOMContentLoaded', ()=>{
     $('#btnStart').addEventListener('click', startGame);
-    $('#btnMeasureAll').addEventListener('click', ()=>{ meas.forEach((d,i)=>{ d.A = clamp(A_of_C(d.C)+randn(NOISE_SD), 0, 1.0); }); setScore(score+meas.length); populateStdTable(); drawStdChart(); });
+    $('#btnMeasureAll').addEventListener('click', ()=>{ meas.forEach((d,i)=>{ d.A = clamp(A_of_C(d.C)+randn(NOISE_SD), 0, 0.10); }); setScore(score+meas.length); populateStdTable(); drawStdChart(); });
     $('#btnFit').addEventListener('click', fitCalibration);
     $('#btnMeasureUnknown').addEventListener('click', measureUnknown);
     $('#btnAnalyze').addEventListener('click', analyzeUnknown);
