@@ -59,10 +59,10 @@
       </div>
       <div class="grid md:grid-cols-2 gap-4">
         <div class="space-y-3">
-          <div class="droppable" data-key="NAK">Drop: Inhibits Na⁺/K⁺‑ATPase</div>
-          <div class="droppable" data-key="NA">Drop: ↑ intracellular Na⁺</div>
-          <div class="droppable" data-key="NCX">Drop: ↓ Na⁺ gradient → ↑ Ca²⁺ via Na⁺/Ca²⁺ exchanger</div>
-          <div class="droppable" data-key="INO">Drop: ↑ Ca²⁺ → ↑ inotropy (contractility)</div>
+          <div class="droppable" data-key="NAK">Drop step here</div>
+          <div class="droppable" data-key="NA">Drop step here</div>
+          <div class="droppable" data-key="NCX">Drop step here</div>
+          <div class="droppable" data-key="INO">Drop step here</div>
         </div>
         <div class="grid grid-cols-2 gap-2" id="pool1">
           <!-- draggables injected -->
@@ -196,7 +196,14 @@
       })
     })
   }
-  function resetS1(){ document.querySelectorAll('#s1 .droppable').forEach(z=>{ z.classList.remove('filled'); z.textContent = 'Drop: '+z.getAttribute('data-key').replace('NAK','Inhibits Na⁺/K⁺‑ATPase').replace('NA','↑ intracellular Na⁺').replace('NCX','↓ Na⁺ gradient → ↑ Ca²⁺ via Na⁺/Ca²⁺ exchanger').replace('INO','↑ Ca²⁺ → ↑ inotropy (contractility)'); z.dataset.filled='' }); initS1(); }
+  function resetS1(){
+  document.querySelectorAll('#s1 .droppable').forEach(z=>{
+    z.classList.remove('filled');
+    z.textContent = 'Drop step here';
+    z.dataset.filled='';
+  });
+  initS1();
+}); initS1(); }
   function checkS1(){
     const need = ['NAK','NA','NCX','INO'];
     let ok = 0; document.querySelectorAll('#s1 .droppable').forEach(z=>{ if(z.dataset.filled===z.getAttribute('data-key')) ok++; });
@@ -374,13 +381,4 @@
     document.getElementById('btnReplay').onclick = ()=>{ location.reload() };
   }
 
-  // Initialize S4, S5 lazily when reached
-  function initS3(){}
-  function initS4(){ initS4.called||(initS4.called=true); initS4._=true; const _=0; initS4._once|| (initS4._once=true, initS4()); }
-  // patch: just call once
-  initS4 = ()=>{ const L=document.getElementById('left4'); const R=document.getElementById('right4'); L.innerHTML=''; R.innerHTML=''; LEFT4.forEach(x=> L.appendChild(renderToken(x,'left')) ); RIGHT4.forEach(x=> R.appendChild(renderToken(x,'right')) ); };
-  function initS5(){}
-
-</script>
-</body>
-</html>
+  
