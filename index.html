@@ -108,11 +108,11 @@
   // ======= Patient Models =======
   // Simplified PK/PD for teaching: not clinical dosing advice.
   const PATIENTS = [
-    { id:'p1', name:'AH (65M)', dx:'HFrEF + AF', renal:'CKD‑2', elim:0.30, // fraction cleared per day
+    { id:'p1', name:'AH (65-year-old male)', dx:'Heart failure with reduced ejection fraction and atrial fibrillation', renal:'Chronic kidney disease — stage 2', elim:0.30,
       dose:0, level:0.8, k:4.0, mg:1.9, ca:9.6, amio:false, loop:true, status:'stable' },
-    { id:'p2', name:'NS (48F)', dx:'AF (paroxysmal)', renal:'Normal', elim:0.40,
+    { id:'p2', name:'NS (48-year-old female)', dx:'Paroxysmal atrial fibrillation', renal:'Normal renal function', elim:0.40,
       dose:0, level:0.4, k:3.2, mg:1.6, ca:10.8, amio:false, loop:false, status:'stable' },
-    { id:'p3', name:'RM (73M)', dx:'HFpEF + CKD‑4', renal:'CKD‑4', elim:0.15,
+    { id:'p3', name:'RM (73-year-old male)', dx:'Heart failure with preserved ejection fraction', renal:'Chronic kidney disease — stage 4', elim:0.15,
       dose:0, level:1.1, k:3.6, mg:1.7, ca:9.1, amio:true, loop:true, status:'fragile' },
   ];
 
@@ -165,7 +165,18 @@
     render();
   }
 
-  function orderLevel(p){ p._showLevel = true; setScore(score+1); render(); }
+  function orderLevel(p){
+    // Simulate same-day post-dose sampling: partial absorption effect once per day
+    if(!p._sampled){
+      const delta = baseDoseToConc(p.dose) * 0.6; // ~60% of daily increment assumed before draw
+      p.level = +(p.level + delta).toFixed(2);
+      p._sampled = true;
+      p._lastEvent = eventBadge('Level drawn (post‑dose sample)', 'info');
+    }
+    p._showLevel = true;
+    setScore(score+1);
+    render();
+  }
 
   // ======= UI Rendering =======
   function patientCard(p){
@@ -177,7 +188,8 @@
       <div class="flex items-start justify-between">
         <div>
           <div class="text-lg font-bold text-slate-800">${p.name}</div>
-          <div class="text-slate-500 text-sm">${p.dx} • ${p.renal}</div>
+          <div class="text-slate-500 text-sm">Condition: ${p.dx} • Renal status: ${p.renal}</div>
+          <div class="text-slate-500 text-xs mt-1">Concurrent factors: Amiodarone <strong>${p.amio?'Yes':'No'}</strong> • Loop diuretic <strong>${p.loop?'Yes':'No'}</strong></div>
         </div>
         <div>${p._lastEvent||''}</div>
       </div>
@@ -222,6 +234,29 @@
   function advanceDay(){
     // score minor penalty if advancing with hidden levels
     PATIENTS.forEach(p=>{ if(!p._showLevel) setScore(score-1) });
+
+    PATIENTS.forEach(p=>{
+      // clear per-day flags
+      p._sampled = false;
+      p._showLevel = false;
+      applyDayUpdate(p);
+    });
+
+    // end conditions & bonuses
+    let allSafe = 0, anyToxic = 0;
+    PATIENTS.forEach(p=>{
+      const c = classifyLevel(p.level).lab;
+      if(c==='Safe') allSafe++;
+      if(c==='Toxic') anyToxic++;
+      // reward proactive monitoring on the previous day
+    });
+
+    if(allSafe===PATIENTS.length) setScore(score+5);
+    if(anyToxic>0) setScore(score-4);
+
+    if(day < DAYS_TOTAL){ setDay(day+1); render(); }
+    else { endGame(); }
+  });
 
     PATIENTS.forEach(applyDayUpdate);
 
