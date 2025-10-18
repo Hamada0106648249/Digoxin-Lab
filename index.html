@@ -93,7 +93,8 @@
             <input id="intercept" type="range" min="-0.2" max="0.4" step="0.01" value="0.05" class="w-full">
           </div>
           <div class="text-sm text-slate-700">Unknown absorbance: <span id="unkA" class="font-bold">—</span></div>
-          <div class="text-sm text-slate-700">Your calculated concentration: <span id="calcC" class="font-bold">—</span> ng/mL</div>
+          $1
+          <div class="text-sm text-slate-700">Safety classification: <span id="safety" class="font-bold">—</span></div>
           <button class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2 px-4 rounded-lg" onclick="checkS2()">Lock Answer</button>
           <p id="s2fb" class="text-sm"></p>
         </div>
@@ -165,8 +166,16 @@
   function shuffle(a){ for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]] } return a }
 
   // INTRO
-  document.getElementById('btnStart').addEventListener('click', ()=>{
-    hide('intro'); show('s1'); setStage(1); initS1();
+  window.addEventListener('DOMContentLoaded', function(){
+    const startBtn = document.getElementById('btnStart');
+    if(startBtn){
+      startBtn.addEventListener('click', ()=>{
+        hide('intro');
+        show('s1');
+        setStage(1);
+        initS1();
+      });
+    }
   });
 
   // ===== Stage 1: Mechanism Builder =====
@@ -222,17 +231,12 @@
 
   // ===== Stage 2: Calibration Curve =====
   let stdPts, unkA, trueSlope, trueIntercept;
-  function initS2(){
-    // generate linear standards (C in ng/mL, A dimensionless)
-    trueSlope = +(0.8 + Math.random()*1.2).toFixed(2); // 0.8–2.0
-    trueIntercept = +(-0.05 + Math.random()*0.15).toFixed(2); // -0.05–0.10
-    stdPts = [0, 0.5, 1.0, 1.5, 2.0].map(c=>({ c, a: +(trueSlope*c + trueIntercept + (Math.random()*0.04-0.02)).toFixed(2) }));
-    const unknownC = +(0.4 + Math.random()*1.6).toFixed(2); // 0.4–2.0
-    unkA = +(trueSlope*unknownC + trueIntercept + (Math.random()*0.02-0.01)).toFixed(2);
-    document.getElementById('unkA').textContent = unkA.toFixed(2);
-
-    drawChart();
-    ['slope','intercept'].forEach(id=> document.getElementById(id).addEventListener('input', drawChart));
+  const THER_LOW = 0.5, THER_HIGH = 2.0, BORDER_HIGH = 3.0; // ng/mL thresholds
+  function classifyConcentration(c){
+    if(c < THER_LOW) return { label:'Sub-therapeutic', color:'#64748b' };
+    if(c <= THER_HIGH) return { label:'Safe', color:'#059669' };
+    if(c <= BORDER_HIGH) return { label:'Borderline', color:'#d97706' };
+    return { label:'Fatal risk', color:'#dc2626' };
   }
   function drawChart(){
     const svg = document.getElementById('chart'); svg.innerHTML = '';
@@ -253,13 +257,23 @@
     // calculate concentration from current m,b
     const c = (unkA - b) / m; const calc = Math.max(0, Math.min(2.2, c));
     document.getElementById('calcC').textContent = calc.toFixed(2);
+    const ev = classifyConcentration(calc);
+    const safetyEl = document.getElementById('safety');
+    if(safetyEl){ safetyEl.textContent = ev.label; safetyEl.style.color = ev.color; }
   }
   function checkS2(){
     const m = +document.getElementById('slope').value; const b = +document.getElementById('intercept').value;
     const c = (unkA - b) / m; const unknownTrueC = (unkA - trueIntercept)/trueSlope;
     const fb = document.getElementById('s2fb');
     const err = Math.abs(c - unknownTrueC);
-    if(err <= 0.1){ setScore(score+20); fb.textContent='Good fit — concentration within ±0.1 ng/mL.'; fb.className='text-emerald-700'; nextStage(); }
+    if(err <= 0.1){
+      setScore(score+20);
+      const calc = +document.getElementById('calcC').textContent || 0;
+      const ev = classifyConcentration(calc);
+      fb.innerHTML = `Good fit — concentration within ±0.1 ng/mL. <br><strong>Status:</strong> ${ev.label}`;
+      fb.className='text-emerald-700';
+      nextStage();
+    }
     else { setScore(score-2); fb.textContent='Your line misses the standards — adjust slope/intercept and try again.'; fb.className='text-rose-700'; }
   }
 
